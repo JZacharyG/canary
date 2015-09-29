@@ -1,0 +1,5 @@
+filterMinor
+findMinor
+.DS_Store
+*.o
+*.dSYM

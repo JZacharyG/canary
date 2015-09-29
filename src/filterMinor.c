@@ -20,6 +20,7 @@ int main(int argc, char *argv[])
 	int haves=0, havenots=0;
 	while ((getline(&gstr, &strlen, stdin)) > 1)
 	{
+		if (*gstr == '#') continue; // allow comments?
 		printf("\"%s\"\n",gstr);
 		g62setgraph(gstr, &g);
 		if (has_minor(&g,&h))

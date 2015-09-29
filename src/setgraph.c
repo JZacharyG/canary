@@ -49,3 +49,9 @@ void print_adjacency_list(const setgraph * const g) {
     printf(";\n");
   }
 }
+
+// assumes that i2v is has length at least g->nv
+void order_vertices(const setgraph* const g, vertex* const i2v)
+{
+	//for vertex
+}

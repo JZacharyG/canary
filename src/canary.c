@@ -15,9 +15,9 @@
 
 
 #include "canary.h"
-
-//#define DEBUG 1
+#ifndef DEBUG
 #define DEBUG 0
+#endif
 #define STATS 1
 //#define STATS 0
 #include <stdio.h>
@@ -29,8 +29,6 @@
 #define min(i,j) (((i)<(j))?(i):(j))
 
 #define NONE -1
-
-typedef int vertex;
 
 typedef struct path path;
 
@@ -89,7 +87,7 @@ typedef struct
 	jmp_buf victory; // where we go if we find a minor.
 } searchData;
 
-void initialize_hdata(hdata* hd, const setgraph* const h)
+void initialize_hdata(hdata* hd, setgraph* h)
 {
 	hd->hnv = h->nv;
 	hd->firsthv = 0;
@@ -101,7 +99,7 @@ void initialize_hdata(hdata* hd, const setgraph* const h)
 	hd->hv2next[hd->hnv-1] = NONE;
 }
 
-void initialize_searchData(searchData* d, const setgraph* const g, const setgraph* const h)
+void initialize_searchData(searchData* restrict d, setgraph* g, setgraph* h)
 {
 	 // just to store the graph
 	d->gnv = g->nv;
@@ -136,7 +134,7 @@ void initialize_searchData(searchData* d, const setgraph* const g, const setgrap
 	d->numMods = 0;
 }
 
-void push_v(searchData* d, path* p, vertex gv) // :)
+void push_v(searchData* restrict d, path* p, vertex gv) // :)
 {
 	assert(p != NULL && d != NULL);
 	assert(d->gv2p[gv] == NULL && setget(d->free, gv));
@@ -148,7 +146,7 @@ void push_v(searchData* d, path* p, vertex gv) // :)
 	++p->len;
 }
 
-void pop_v(searchData* d, path* p, vertex gv) // :)
+void pop_v(searchData* restrict d, path* p, vertex gv) // :)
 {
 	assert(p != NULL && d != NULL);
 	int i = --p->len;
@@ -162,7 +160,7 @@ void pop_v(searchData* d, path* p, vertex gv) // :)
 
 // force a vertex to be in a branch set, if possible.
 // adjusts the cutoffs of the relevant path and adds a mod to the stack.
-void fix_BS(searchData* d, vertex gv, vertex hv) // ...
+void fix_BS(searchData* restrict d, vertex gv, vertex hv) // ...
 {
 	assert(d != NULL);
 	path* p = d->gv2p[gv];
@@ -202,7 +200,7 @@ void fix_BS(searchData* d, vertex gv, vertex hv) // ...
 
 // force a vertex to be in the other branch set, if possible.
 // adjusts the cutoffs of the relevant path and adds a mod to the stack.
-void fix_BS_not(searchData* d, vertex gv, vertex hv) // :)
+void fix_BS_not(searchData* restrict d, vertex gv, vertex hv) // :)
 {
 	assert(d != NULL);
 	path* p = d->gv2p[gv];
@@ -244,7 +242,7 @@ void fix_BS_not(searchData* d, vertex gv, vertex hv) // :)
 	assert(p->c1 < p->c2);
 }
 
-void undo_last_mod(searchData* d) // :) 
+void undo_last_mod(searchData* restrict d) // :) 
 {
 	assert(d!=NULL && d->numMods > 0);
 	
@@ -258,13 +256,13 @@ void undo_last_mod(searchData* d) // :)
 	d->hv2semiassigned[m->p->h2] = m->oldsemi2;
 }
 
-void undo_mods(searchData* d, int n) // :)
+void undo_mods(searchData* restrict d, int n) // :)
 {
 	while (d->numMods > n)
 		undo_last_mod(d);
 }
 
-void finish_path(searchData* d, path* p, int c1, int c2) // :)
+void finish_path(searchData* restrict d, path* p, int c1, int c2) // :)
 {
 	p->c1 = c1;
 	p->c2 = min(c2, p->len); // nb: these might not point to a vertex of the path
@@ -280,7 +278,7 @@ void finish_path(searchData* d, path* p, int c1, int c2) // :)
 	assert(p->c1 < p->c2);
 }
 
-void unfinish_path(searchData* d, path* p) // :)
+void unfinish_path(searchData* restrict d, path* p) // :)
 {
 	// just need to remove the vertices in the path from the relevant sets.
 	// Note that we maintain d->free as we go, so we only clear from the relevant branch sets
@@ -294,7 +292,7 @@ void unfinish_path(searchData* d, path* p) // :)
 }
 
 // returns the portion of the path containing gv that occurs after (and not including) gv, treating the hv side of the path as the front.
-set path_after(searchData* d, vertex gv, vertex hv) // :)
+set path_after(searchData* restrict d, vertex gv, vertex hv) // :)
 {
 	path* p = d->gv2p[gv];
 	assert(p != NULL && (p->h1 == hv || p->h2 == hv));
@@ -304,13 +302,13 @@ set path_after(searchData* d, vertex gv, vertex hv) // :)
 		(p->i2psofar[i-1]);
 }
 
-void build_BS(searchData* d, vertex hv);
-void build_path(searchData* d, path* p, set bsnbhd);
-void add_to_path(searchData* d, path* p, vertex gv, int c1, int c2,  set bsnbhd);
-void build_next(searchData* d, path* p, set bsnbhd);
+void build_BS(searchData* restrict d, vertex hv);
+void build_path(searchData* restrict d, path* p, set bsnbhd);
+void add_to_path(searchData* restrict d, path* p, vertex gv, int c1, int c2,  set bsnbhd);
+void build_next(searchData* restrict d, path* p, set bsnbhd);
 
 // start building the specified path
-void build_path(searchData* d, path* p, set bsnbhd)
+void build_path(searchData* restrict d, path* p, set bsnbhd)
 {
 	/* initialize things */
 	
@@ -436,7 +434,7 @@ void build_path(searchData* d, path* p, set bsnbhd)
 
 // assumes that lastGv is allowed to be added to the given path.
 // Adds it, continues the search, and returns if it fails to build this into a complete model for the minor (jumps if successful).
-void add_to_path(searchData* d, path* p, vertex gv, int c1, int c2,  set bsnbhd)
+void add_to_path(searchData* restrict d, path* p, vertex gv, int c1, int c2,  set bsnbhd)
 {
 	// if we are using vertices that are not allowed in one or both of the branch sets, adjust the cutoffs accordingly.
 	assert(c1 < c2);
@@ -499,7 +497,7 @@ void add_to_path(searchData* d, path* p, vertex gv, int c1, int c2,  set bsnbhd)
 	pop_v(d, p, gv);
 }
 
-void build_BS(searchData* d, vertex hv)
+void build_BS(searchData* restrict d, vertex hv)
 {
 	d->hv2allowed[hv] = setintsct(d->free,d->hv2allowed[d->hd.hv2symm[hv]]);
 	d->hv2assigned[hv] = d->hv2semiassigned[hv] = emptyset;
@@ -535,7 +533,7 @@ void build_BS(searchData* d, vertex hv)
 }
 
 // build the next path or branch set as appropriate.
-void build_next(searchData* d, path* p, set bsnbhd)
+void build_next(searchData* restrict d, path* p, set bsnbhd)
 {
 	assert(d!=NULL && p!=NULL);
 	if (p->next != NULL) // more paths needed
@@ -553,7 +551,7 @@ void freepath(path* p)
 	free(p);
 }
 
-bool has_minor(const setgraph* const g, const setgraph* const h)
+bool has_minor(setgraph* g, setgraph* h)
 {
 	// setup
 	bool has = false;

@@ -56,28 +56,30 @@ typedef uint64_t set;
 #define setcompeq(s,n)     ((s) ^= setmask((n)))
 
 #define setnonempty(s)     (s)
+#define issubset(s1,s2)    (!((~(s1))&(s2)))
+
 
 #if MAXNV <= 32
-static inline bool first(set s, int* i)
-{
-	if (setnonempty(s))
-	{
-		*i = __builtin_ctzl(s);
-		return true;
-	}
-	return false;
-}
+#define setsize(s)         (__builtin_popcountl(s))
 #elif MAXNV <= 64
+#define setsize(s)         (__builtin_popcountll(s))
+#endif
+
+
+
 static inline bool first(set s, int* i)
 {
 	if (setnonempty(s))
 	{
+#if MAXNV <= 32
+		*i = __builtin_ctzl(s);
+#elif MAXNV <= 64
 		*i = __builtin_ctzll(s);
+#endif
 		return true;
 	}
 	return false;
 }
-#endif
 
 static inline bool next(set s, int* i, int p)
 {
