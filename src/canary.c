@@ -90,13 +90,34 @@ typedef struct
 void initialize_hdata(hdata* hd, setgraph* h)
 {
 	hd->hnv = h->nv;
-	hd->firsthv = 0;
-	for (int hv=0; hv<hd->hnv; ++hv)
+	
+	vertex* i2hv = malloc(h->nv*sizeof(vertex));
+	order_vertices(h, i2hv);
+	for (int i = 0; i<h->nv; ++i)
+		db_print("%d ", i2hv[i]);
+	db_print("\n");
+	
+	hd->firsthv = i2hv[0];
+	for (int i=0; i < hd->hnv-1; ++i)
 	{
-		hd->hv2next[hv] = hv+1;
+		hd->hv2next[i2hv[i]] = i2hv[i+1];
+	}
+	hd->hv2next[i2hv[hd->hnv-1]] = NONE;
+	
+	vertex hv = hd->firsthv;
+	do
+	{
+		db_print("%d ", hv);
+		hv = hd->hv2next[hv];
+	} while (hv != NONE);
+	db_print("\n");
+	
+	for (vertex hv=0; hv < hd->hnv; ++hv)
+	{
 		hd->hv2symm[hv] = hd->hnv;
 	}
-	hd->hv2next[hd->hnv-1] = NONE;
+
+	free(i2hv);
 }
 
 void initialize_searchData(searchData* restrict d, setgraph* g, setgraph* h)
@@ -109,7 +130,8 @@ void initialize_searchData(searchData* restrict d, setgraph* g, setgraph* h)
 		d->gv2p[gv] = NULL;
 	}
 	set sofar = emptyset;
-	for (vertex hv = 0; hv < d->hd.hnv; ++hv)
+	vertex hv = d->hd.firsthv;
+	do
 	{
 		d->hv2assigned[hv] = emptyset;
 		d->hv2semiassigned[hv] = emptyset;
@@ -126,8 +148,10 @@ void initialize_searchData(searchData* restrict d, setgraph* g, setgraph* h)
  			pp = &((**pp).next);
 		} while (next(nbhd, &h2, h2));
 		*pp = NULL;
-		setaddeq(sofar, hv);	
-	}
+		setaddeq(sofar, hv);
+		
+		hv = d->hd.hv2next[hv];
+	} while (hv != NONE);
 	d->hv2allowed[d->hd.hnv] = fullset(d->gnv);
 	d->free = fullset(d->gnv);
 	
@@ -543,7 +567,7 @@ void build_next(searchData* restrict d, path* p, set bsnbhd)
 	else
 		longjmp(d->victory, true); // yay!
 }
-
+// if we were using alloca, we wouldn't need this...
 void freepath(path* p)
 {
 	if (p != NULL)
@@ -555,6 +579,7 @@ bool has_minor(setgraph* g, setgraph* h)
 {
 	// setup
 	bool has = false;
+	
 	searchData d;
 	initialize_hdata(&d.hd, h);
 	initialize_searchData(&d, g, h);
