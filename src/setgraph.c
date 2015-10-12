@@ -1,4 +1,5 @@
 #include "setgraph.h"
+#include "debug.h"
 #include <string.h>
 #include <stdio.h>
 #define BIAS6 63
@@ -53,11 +54,15 @@ void print_adjacency_list(const setgraph * const g) {
 // assumes that i2v is has length at least g->nv
 void order_vertices(const setgraph* const g, vertex* const i2v)
 {
-	set remaining = fullset(g->nv);
+	bitset remaining = fullset(g->nv);
 	for (int i=0; i < g->nv; ++i)
 	{
 		vertex v, bestv;
 		unsigned int score, bestscore; // nv*number of earlier adjacencies + deg
+		
+		db_print("looking for i=%d/%d, bitset to choose from: %llo\n", i, g->nv, remaining);
+		fflush(stdout);
+		
 		if (first(remaining, &v))
 		{
 			bestv = v;
@@ -71,9 +76,67 @@ void order_vertices(const setgraph* const g, vertex* const i2v)
 					bestscore = score;
 				}
 			}
+			db_print("\tchoosing %d\n", bestv);
 			i2v[i]=bestv;
 			setremoveeq(remaining, bestv);
 		}
 		else {assert(0);}
 	}
 }
+
+void rev_order_vertices(const setgraph* const g, vertex* const i2v)
+{
+	bitset remaining = fullset(g->nv);
+	for (int i=0; i < g->nv; ++i)
+	{
+		vertex v, bestv;
+		unsigned int score, bestscore; // nv*number of earlier adjacencies + deg
+		if (first(remaining, &v))
+		{
+			bestv = v;
+			bestscore = -(g->nv * setsize(setminus(g->nbhd[v], remaining)) + setsize(g->nbhd[v]));
+			while (next(remaining, &v, v))
+			{
+				score = -(g->nv * setsize(setminus(g->nbhd[v], remaining)) + setsize(g->nbhd[v]));
+				if (score > bestscore)
+				{
+					bestv = v;
+					bestscore = score;
+				}
+			}
+			i2v[i]=bestv;
+			setremoveeq(remaining, bestv);
+		}
+		else {assert(0);}
+	}
+}
+
+
+// assumes that newg is (at least) as large as g
+void relabel_into(const setgraph* const g, setgraph* const newg, vertex* const i2v)
+{
+	newg->nv = g->nv;
+	for (vertex i = 0; i < newg->nv; ++i)
+	{
+		newg->nbhd[i] = emptyset;
+		for (vertex j = 0; j < newg->nv; ++j)
+			if (setget(g->nbhd[i2v[i]],i2v[j]))
+				setaddeq(newg->nbhd[i],j);
+	}
+}
+
+#ifndef EXCLUDE_NAUTY
+void setgraph2nautygraph(const setgraph* const sg, graph* ng)
+{
+	int m=SETWORDSNEEDED(sg->nv);
+	memset(ng, 0, sg->nv*m*sizeof(setword));
+	vertex v,w;
+	for (v=0; v < sg->nv; ++v)
+	{
+		if (next(sg->nbhd[v], &w, v)) do
+		{
+			ADDONEEDGE(ng,v,w,m);
+		} while (next(sg->nbhd[v], &w, w));
+	}
+}
+#endif

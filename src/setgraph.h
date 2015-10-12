@@ -6,18 +6,22 @@
 
 typedef int vertex;
 
-#include "set.h"
+#include "bitset.h"
+
+#ifndef EXCLUDE_NAUTY
+#include "nauty.h"
+#endif
 
 typedef struct
 {
 	int nv;
-	set* nbhd;
+	bitset* nbhd;
 } setgraph;
 
 static inline void allocate_setgraph(setgraph* s, int nv)
 {
 	s->nv = nv;
-	s->nbhd = malloc(nv*sizeof(set));
+	s->nbhd = malloc(nv*sizeof(bitset));
 	for (int i = 0; i < nv; ++i)
 		s->nbhd[i] = emptyset;
 }
@@ -38,5 +42,11 @@ static inline void add_edge(setgraph* s, int v1, int v2)
 void g62setgraph(const char g6[], setgraph* g);
 void print_adjacency_list(const setgraph* const g);
 void order_vertices(const setgraph* const g, vertex* const i2v);
+void rev_order_vertices(const setgraph* const g, vertex* const i2v);
+void relabel_into(const setgraph* const g, setgraph* const newg, vertex* const i2v);
+
+#ifndef EXCLUDE_NAUTY
+void setgraph2nautygraph(const setgraph* const sg, graph* ng);
+#endif
 
 #endif

@@ -22,8 +22,8 @@
 //#define STATS 0
 #include <stdio.h>
 #include "debug.h"
-#include "set.h"
 #include <setjmp.h>
+#include <alloca.h>
 
 #define max(i,j) (((i)>(j))?(i):(j))
 #define min(i,j) (((i)<(j))?(i):(j))
@@ -36,25 +36,25 @@ typedef struct
 {
 	path* p;
 	int oldc1, oldc2;
-	set oldassigned1, oldassigned2, oldsemi1, oldsemi2; // FIX ME? We could recompute instead of storing.
+	bitset oldassigned1, oldassigned2, oldsemi1, oldsemi2; // FIX ME? We could recompute instead of storing.
 } mod;
 
-// c1 and c2 should not be used at all on an incomplete path; they are only set as a path is completed
+// c1 and c2 should not be used at all on an incomplete path; they are only bitset as a path is completed
 // 
 struct path
 {
-	vertex h1, h2; // the two branch sets that this path connects.  the search starts from h1's branch set and proceeds towards h2's.
+	vertex h1, h2; // the two branch sets that this path connects.  the search starts from h1's branch bitset and proceeds towards h2's.
 	
-	// the indices of the last vertex known to be part of the branch set 1
-	// and first known to be part of branch set 2.
+	// the indices of the last vertex known to be part of the branch bitset 1
+	// and first known to be part of branch bitset 2.
 	int c1, c2;
 	
 //	int i2Gv[MAXNV];
 	
 	int len; // the next available position in the path.  actually one more than the number of vertices in the path, because we leave a blank at the 0th element
 	
-	set i2psofar[MAXNV];
-	set i2nbhdsofar[MAXNV]; // the neighborhood around vertices in the path up to this point.  might include other vertices in the path, vertices already assigned or semi-assigned.
+	bitset i2psofar[MAXNV];
+	bitset i2nbhdsofar[MAXNV]; // the neighborhood around vertices in the path up to this point.  might include other vertices in the path, vertices already assigned or semi-assigned.
 	int gv2i[MAXNV];
 	path* next;
 };
@@ -69,23 +69,74 @@ struct hdata
 
 typedef struct
 {
-	set gv2nbhd[MAXNV]; // just to store the graph
+	bitset gv2nbhd[MAXNV]; // just to store the graph
 	int gnv;
 	hdata hd;
 	
 	mod mods[MAXNV]; // a stack of all modifications to cutoffs.  Every mod should fix at least one additional vertex, so the number is limited to the number of vertices in G.
 	int numMods;
 	
-	set free;
-	set hv2assigned[MAXNV];
-	set hv2semiassigned[MAXNV];
-	set hv2allowed[MAXNV+1];
+	bitset free;
+	bitset hv2assigned[MAXNV];
+	bitset hv2semiassigned[MAXNV];
+	bitset hv2allowed[MAXNV+1];
 	path* hv2firstpath[MAXNV];
 	
 	path* gv2p[MAXNV]; // vertices in G
 	
 	jmp_buf victory; // where we go if we find a minor.
 } searchData;
+
+#ifndef EXCLUDE_NAUTY
+void findHSymmetries(hdata* d, setgraph* h)
+{
+	int n=d->hnv;
+	int m=SETWORDSNEEDED(n);
+	graph* nh = alloca(n*m*sizeof(setword));
+	setgraph2nautygraph(h, nh);
+	int labels[MAXNV];
+	int ptn[MAXNV];
+	int orbits[MAXNV];
+	
+	DEFAULTOPTIONS_GRAPH(options);
+	options.defaultptn = FALSE;
+	statsblk stats;
+	
+	for (vertex v=0; v < n; ++v)
+		d->hv2symm[v]=n;
+	vertex v,w;
+	int i,j;
+	for (i=0, v=d->firsthv; i<n; ++i, v=d->hv2next[v])
+	{
+		for (j=0, w=d->firsthv; j<n; ++j, w=d->hv2next[w])
+		{
+			labels[j] = w;
+			ptn[j] = (j < i)?0:1;
+		}
+		db_print("labels:[");
+		for (j=0, w=d->firsthv; j<n; ++j, w=d->hv2next[w])
+		{
+			db_print(" %d",labels[j]);
+			ptn[j] = (j < i)?0:1;
+		}
+		db_print("]\n");
+		db_print("ptn:[");
+		for (j=0, w=d->firsthv; j<n; ++j, w=d->hv2next[w])
+		{
+			db_print(" %d",ptn[j]);
+		}
+		db_print("]\n");
+
+		
+		ptn[n-1] = 0;
+		densenauty(nh, labels, ptn, orbits, &options, &stats, m, d->hnv, NULL);
+		
+		for (w=d->hv2next[v]; w != NONE; w=d->hv2next[w])
+			if (orbits[w] == orbits[v])
+				d->hv2symm[w] = v;
+	}
+}
+#endif
 
 void initialize_hdata(hdata* hd, setgraph* h)
 {
@@ -104,6 +155,7 @@ void initialize_hdata(hdata* hd, setgraph* h)
 	}
 	hd->hv2next[i2hv[hd->hnv-1]] = NONE;
 	
+	db_print("hv ordering");
 	vertex hv = hd->firsthv;
 	do
 	{
@@ -112,11 +164,24 @@ void initialize_hdata(hdata* hd, setgraph* h)
 	} while (hv != NONE);
 	db_print("\n");
 	
-	for (vertex hv=0; hv < hd->hnv; ++hv)
+#ifndef EXCLUDE_NAUTY
+	findHSymmetries(hd,h);
+	for (hv=0; hv<h->nv; ++hv)
 	{
-		hd->hv2symm[hv] = hd->hnv;
+		db_print("%d ", hd->hv2symm[hv]);
 	}
-
+	db_print("\n");
+// 	hv = hd->firsthv;
+// 	do
+// 	{
+// 		db_print("%d ", hd->hv2symm[hv]);
+// 		hv = hd->hv2next[hv];
+// 	} while (hv != NONE);
+// 	db_print("\n");
+#else
+	for (vertex hv=0; hv < hd->hnv; ++hv)
+		hd->hv2symm[hv] = hd->hnv;
+#endif
 	free(i2hv);
 }
 
@@ -129,7 +194,7 @@ void initialize_searchData(searchData* restrict d, setgraph* g, setgraph* h)
 		d->gv2nbhd[gv] = g->nbhd[gv];
 		d->gv2p[gv] = NULL;
 	}
-	set sofar = emptyset;
+	bitset sofar = emptyset;
 	vertex hv = d->hd.firsthv;
 	do
 	{
@@ -137,7 +202,7 @@ void initialize_searchData(searchData* restrict d, setgraph* g, setgraph* h)
 		d->hv2semiassigned[hv] = emptyset;
 		int h2;
 		path** pp = &d->hv2firstpath[hv];
-		set nbhd = setintsct(h->nbhd[hv],sofar);
+		bitset nbhd = setintsct(h->nbhd[hv],sofar);
 		if (first(nbhd, &h2)) do
 		{
 			*pp = malloc(sizeof(path));
@@ -198,7 +263,7 @@ void fix_BS(searchData* restrict d, vertex gv, vertex hv) // ...
 	d->mods[d->numMods].oldsemi2 = d->hv2semiassigned[p->h2];
 	
 	++d->numMods;
-	set s;
+	bitset s;
 	if (p->h1 == hv)
 	{
 		p->c1 = p->gv2i[gv];
@@ -242,7 +307,7 @@ void fix_BS_not(searchData* restrict d, vertex gv, vertex hv) // :)
 	d->mods[d->numMods].oldsemi2 = d->hv2semiassigned[p->h2];
 	
 	++d->numMods;
-	set s;
+	bitset s;
 	if (p->h2 == hv)
 	{
 		p->c1 = p->gv2i[gv];
@@ -316,7 +381,7 @@ void unfinish_path(searchData* restrict d, path* p) // :)
 }
 
 // returns the portion of the path containing gv that occurs after (and not including) gv, treating the hv side of the path as the front.
-set path_after(searchData* restrict d, vertex gv, vertex hv) // :)
+bitset path_after(searchData* restrict d, vertex gv, vertex hv) // :)
 {
 	path* p = d->gv2p[gv];
 	assert(p != NULL && (p->h1 == hv || p->h2 == hv));
@@ -327,12 +392,12 @@ set path_after(searchData* restrict d, vertex gv, vertex hv) // :)
 }
 
 void build_BS(searchData* restrict d, vertex hv);
-void build_path(searchData* restrict d, path* p, set bsnbhd);
-void add_to_path(searchData* restrict d, path* p, vertex gv, int c1, int c2,  set bsnbhd);
-void build_next(searchData* restrict d, path* p, set bsnbhd);
+void build_path(searchData* restrict d, path* p, bitset bsnbhd);
+void add_to_path(searchData* restrict d, path* p, vertex gv, int c1, int c2,  bitset bsnbhd);
+void build_next(searchData* restrict d, path* p, bitset bsnbhd);
 
 // start building the specified path
-void build_path(searchData* restrict d, path* p, set bsnbhd)
+void build_path(searchData* restrict d, path* p, bitset bsnbhd)
 {
 	/* initialize things */
 	
@@ -350,7 +415,7 @@ void build_path(searchData* restrict d, path* p, set bsnbhd)
 	
 	// if assigned h1 is adjacent to semiassigned h2
 	vertex nbr;
-	set s = setintsct(bsnbhd, d->hv2semiassigned[p->h2]);
+	bitset s = setintsct(bsnbhd, d->hv2semiassigned[p->h2]);
 	if (first(s, &nbr)) do
 	{
 		setminuseq(s,path_after(d, nbr, p->h2));
@@ -362,19 +427,16 @@ void build_path(searchData* restrict d, path* p, set bsnbhd)
 		undo_last_mod(d);
 		fix_BS_not(d, nbr, p->h2);
 	} while (next(s, &nbr, nbr));
-		
-	
-
 	
 	
 	
 	// if semiassigned h1 is adjacent to assigned h2
 	// it sure would be nice if we had the nbhd of h2 available, but alas.
 	vertex v; // a vertex, assigned or semiassigned to h1
-	set nbhd; // vertices w such that v is the first vertex in v's path that w
+	bitset nbhd; // vertices w such that v is the first vertex in v's path that w
 	          // is adjacent to.
 	path* vp; // v's path
-	set newbsnbhd;
+	bitset newbsnbhd;
 	s = d->hv2semiassigned[p->h1];
 	if (first(s, &v)) do
 	{
@@ -458,7 +520,7 @@ void build_path(searchData* restrict d, path* p, set bsnbhd)
 
 // assumes that lastGv is allowed to be added to the given path.
 // Adds it, continues the search, and returns if it fails to build this into a complete model for the minor (jumps if successful).
-void add_to_path(searchData* restrict d, path* p, vertex gv, int c1, int c2,  set bsnbhd)
+void add_to_path(searchData* restrict d, path* p, vertex gv, int c1, int c2,  bitset bsnbhd)
 {
 	// if we are using vertices that are not allowed in one or both of the branch sets, adjust the cutoffs accordingly.
 	assert(c1 < c2);
@@ -476,7 +538,7 @@ void add_to_path(searchData* restrict d, path* p, vertex gv, int c1, int c2,  se
 	int firstMod = d->numMods;
 	
 	
-	set nbhd = setminus(setminus(setminus(d->gv2nbhd[gv], p->i2psofar[p->len-1]), p->i2nbhdsofar[p->len-2]), bsnbhd);
+	bitset nbhd = setminus(setminus(setminus(d->gv2nbhd[gv], p->i2psofar[p->len-1]), p->i2nbhdsofar[p->len-2]), bsnbhd);
 	if setnonempty(setintsct(nbhd, d->hv2assigned[p->h2]))
 	{
 		finish_path(d, p, c1, c2);
@@ -488,7 +550,7 @@ void add_to_path(searchData* restrict d, path* p, vertex gv, int c1, int c2,  se
 	
 	int nbr;
 	
-	set semicomplete = setintsct(nbhd, d->hv2semiassigned[p->h2]); // make sure that we aren't marking things in this path as assigned/semiassigned yet
+	bitset semicomplete = setintsct(nbhd, d->hv2semiassigned[p->h2]); // make sure that we aren't marking things in this path as assigned/semiassigned yet
 //	we should find the last vertex adjacent to this one that can be part of Hv for each adjacent path of Hv.
 	// When we get rid of these, we introduce errors because if we have 
 	// (h1) -- a -- b -- (h2), and we fail to use b, then we will mark a and b as being part of h1, but we don't update the semicomplete set, so we will try to use a anyway.  BAM!  Data structure has been broken.
@@ -509,7 +571,7 @@ void add_to_path(searchData* restrict d, path* p, vertex gv, int c1, int c2,  se
 		fix_BS_not(d, nbr, p->h2);
 	} while (next(semicomplete, &nbr, nbr));
 	
-	set possible_next = setminus(setintsct(nbhd, d->free), p->i2nbhdsofar[p->len-2]);
+	bitset possible_next = setminus(setintsct(nbhd, d->free), p->i2nbhdsofar[p->len-2]);
 	
 	if (first(possible_next, &nbr)) do
 	{
@@ -542,6 +604,8 @@ void build_BS(searchData* restrict d, vertex hv)
 	}
 	else
 	{
+		// FIX ME: Lets try only looking at (semi)neighbors of something it has to be adjacent to
+		// Will this cover a lot of what makes sorting G so valuable?
 		if (first(d->hv2allowed[hv], &gv)) do
 		{
 			setremoveeq(d->free, gv);
@@ -556,8 +620,8 @@ void build_BS(searchData* restrict d, vertex hv)
 	}
 }
 
-// build the next path or branch set as appropriate.
-void build_next(searchData* restrict d, path* p, set bsnbhd)
+// build the next path or branch bitset as appropriate.
+void build_next(searchData* restrict d, path* p, bitset bsnbhd)
 {
 	assert(d!=NULL && p!=NULL);
 	if (p->next != NULL) // more paths needed
@@ -579,11 +643,17 @@ bool has_minor(setgraph* g, setgraph* h)
 {
 	// setup
 	bool has = false;
-	
+	// FIX ME? where should I be selecting the ordering of the vertices?  here?  outside?  inside?
+	vertex* i2gv = malloc(g->nv * sizeof(vertex));
+	setgraph sorted_g;
+	allocate_setgraph(&sorted_g, g->nv);
+	order_vertices(g, i2gv);
+	relabel_into(g, &sorted_g, i2gv);
+	print_adjacency_list(&sorted_g);
 	searchData d;
 	initialize_hdata(&d.hd, h);
-	initialize_searchData(&d, g, h);
-	
+	initialize_searchData(&d, &sorted_g, h);
+	//initialize_searchData(&d, g, h);
 	if (setjmp(d.victory))
 	{
 		has = true; // win!
@@ -599,6 +669,7 @@ bool has_minor(setgraph* g, setgraph* h)
 	
 	for (int i = 0; i < d.hd.hnv; ++i)
 		freepath(d.hv2firstpath[i]);
-	
+	free(i2gv);
+	free_setgraph(&sorted_g);
 	return has;
 }

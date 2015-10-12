@@ -1,0 +1,5 @@
+nearly planar 20 vertex graph without 8 vertex minor (no symmetry)
+time ./exe/findMinor "GUZuvW" "S?????ACCGAAAWW@GAh_jAweDGw^S^CR["
+Takes quite a while (~12s) if G is in this order
+Takes about .055s if G is ordered as "S~vddEdgSoJ?K?S?g?W?F??s?AY?DA?B?"
+This is some freaky stuff.
