@@ -38,16 +38,17 @@ void g62setgraph(const char g6[], setgraph* g) {
   }
 }
 
+// FIX ME.  Make this style more consistent with the rest of the code.
 void print_adjacency_list(const setgraph * const g) {
   int i, j;
   for (i = 0; i < g->nv; ++i) {
-    printf("  %d :", i);
+    printf("%d :", i);
     for (j = 0; j < g->nv; ++j) {
       if (setget(g->nbhd[i], j)) {
         printf(" %d", j);
       }
     }
-    printf(";\n");
+    printf("\n");
   }
 }
 

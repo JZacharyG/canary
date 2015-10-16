@@ -35,7 +35,7 @@ typedef uint64_t bitset;
 // 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0
 // }
 
-#define setmask(n)       (~((bitset)-1 << (n)))
+#define setmask(n)       (~((bitset)(-1) << (n)))
 #define emptyset         ((bitset)0)
 #define fullset(n)       setmask((n))
 
@@ -62,7 +62,7 @@ typedef uint64_t bitset;
 #define setcompeq(s,n)     ((s) ^= setmask((n)))
 
 #define setnonempty(s)     (s)
-#define issubset(s1,s2)    (!((~(s1))&(s2)))
+#define issubset(s1,s2)    (!((~(s1))&(s2))) // is s2 a subset of s1
 
 
 #if MAXNV <= 32
@@ -89,6 +89,17 @@ static inline bool next(bitset s, int* i, int p)
 {
 	// clear bits upto and including p, then find the first bitset bit.
 	return first(s & ((bitset)(-1) << (p+1)), i);
+}
+
+static inline bitset relabel(bitset in, int* old2new)
+{
+	bitset out=emptyset;
+	int v;
+	if (first(in, &v)) do
+	{
+		setaddeq(out,old2new[v]);
+	} while (next(in,&v,v));
+	return out;
 }
 
 // bool first(bitset s, int* i)

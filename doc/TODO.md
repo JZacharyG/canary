@@ -5,6 +5,7 @@ Todo:
 2. Symmetry
 	- Don't use G-vertices that don't leave room for the symmetric vertices.
 3. Experiment with different orderings of vertices of H and G.
+	- There is something big going on with the ordering of G.  How should one best leverage this?
 4. Pick better anchors
 	- Can we put the anchor at the beginning of the first path in the BS?  This way we can (more) quickly get a set of the nbhd of a branch set.
 	- oh, shit. We can't assume that the anchor is adjacent to anything currently (semi)assigned to a neighboring branch set! Those aren't complete, maybe it is only adjacent to something that will be.

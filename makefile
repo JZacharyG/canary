@@ -20,7 +20,7 @@ target_paths = $(addprefix $(EXE_DIR)/,$(targets))
 
 all: $(obj_paths) $(target_paths)
 clean:
-	-rm -d $(OBJECT_DIR)/*.o $(EXE_DIR)/*.dSYM $(target_paths)
+	-rm -r $(OBJECT_DIR)/*.o $(EXE_DIR)/*.dSYM $(target_paths)
 debug: clean all
 nonauty: clean all
 
