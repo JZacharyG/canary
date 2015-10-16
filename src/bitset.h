@@ -15,25 +15,25 @@ typedef uint64_t bitset;
 // look-up table for the location of the least significant (right-most)
 // non-zero bit in a byte. More accurately (because 0 -> 8), the number
 // of trailing 0s in a byte.
-// const int firstbit[] =
-// {
-// 	8,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	7,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0
-// }
+static const int firstbit[] =
+{
+	8,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	7,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0
+};
 
 #define setmask(n)       (~((bitset)(-1) << (n)))
 #define emptyset         ((bitset)0)
@@ -85,41 +85,24 @@ static inline bool first(bitset s, int* i)
 	return false;
 }
 
-static inline bool next(bitset s, int* i, int p)
-{
-	// clear bits upto and including p, then find the first bitset bit.
-	return first(s & ((bitset)(-1) << (p+1)), i);
-}
-
-static inline bitset relabel(bitset in, int* old2new)
-{
-	bitset out=emptyset;
-	int v;
-	if (first(in, &v)) do
-	{
-		setaddeq(out,old2new[v]);
-	} while (next(in,&v,v));
-	return out;
-}
-
-// bool first(bitset s, int* i)
+// static inline bool first(bitset s, int* i)
 // {
 // 	if (s & 0xFF)
-// 		*i = firstbit[s & 0xFF], return true;
+// 		{*i = firstbit[s & 0xFF]; return true;}
 // 	if (s & 0xFF00)
-// 		*i = firstbit[s >> 8 & 0xFF], return true;
+// 		{*i = 8+firstbit[s >> 8 & 0xFF]; return true;}
 // 	if (s & 0xFF0000)
-// 		*i = firstbit[s >> 16 & 0xFF], return true;
+// 		{*i = 16+firstbit[s >> 16 & 0xFF]; return true;}
 // 	if (s & 0xFF000000)
-// 		*i = firstbit[s >> 24 & 0xFF], return true;
+// 		{*i = 24+firstbit[s >> 24 & 0xFF]; return true;}
 // 	if (s & 0xFF00000000)
-// 		*i = firstbit[s >> 32 & 0xFF], return true;
+// 		{*i = 32+firstbit[s >> 32 & 0xFF]; return true;}
 // 	if (s & 0xFF0000000000)
-// 		*i = firstbit[s >> 40 & 0xFF], return true;
+// 		{*i = 40+firstbit[s >> 40 & 0xFF]; return true;}
 // 	if (s & 0xFF000000000000)
-// 		*i = firstbit[s >> 48 & 0xFF], return true;
+// 		{*i = 48+firstbit[s >> 48 & 0xFF]; return true;}
 // 	if (s & 0xFF00000000000000)
-// 		*i = firstbit[s >> 56 & 0xFF], return true;
+// 		{*i = 56+firstbit[s >> 56 & 0xFF]; return true;}
 // 	return false;
 // }
 // 
@@ -153,6 +136,23 @@ static inline bitset relabel(bitset in, int* old2new)
 // 	}
 // 	return false;
 // }
+
+static inline bool next(bitset s, int* i, int p)
+{
+	// clear bits upto and including p, then find the first bitset bit.
+	return first(s & ((bitset)(-1) << (p+1)), i);
+}
+
+static inline bitset relabel(bitset in, int* old2new)
+{
+	bitset out=emptyset;
+	int v;
+	if (first(in, &v)) do
+	{
+		setaddeq(out,old2new[v]);
+	} while (next(in,&v,v));
+	return out;
+}
 
 
 //http://graphics.stanford.edu/~seander/bithacks.html#NextBitPermutation

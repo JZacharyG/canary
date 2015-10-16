@@ -63,8 +63,9 @@ struct hdata
 {
 	int hnv;
 	vertex firsthv;
-	vertex hv2next[MAXNV];
-	vertex hv2symm[MAXNV];
+	vertex hv2next[MAXNV]; // the order in which to carry out the search for branch sets.
+	vertex hv2symm[MAXNV]; // To take advantage of automorphisms in H, each vertex can point to an earlier one, in which case it's anchors are restricted to the rejected anchors of that vertex.  hv2allowed[hnv] will always be the empty set, so those without symmetry will point there.
+	int hv2numsymm[MAXNV]; // the number of vertices that will restrict themselves (directly or indirectly) to this vertex's rejected anchors.
 };
 
 typedef struct
@@ -130,10 +131,15 @@ void findHSymmetries(hdata* d, setgraph* h)
 		
 		ptn[n-1] = 0;
 		densenauty(nh, labels, ptn, orbits, &options, &stats, m, d->hnv, NULL);
-		
+		d->hv2numsymm[v] = 0;
 		for (w=d->hv2next[v]; w != NONE; w=d->hv2next[w])
+		{
 			if (orbits[w] == orbits[v])
+			{
 				d->hv2symm[w] = v;
+				++d->hv2numsymm[v];
+			}
+		}
 	}
 }
 #endif
@@ -144,6 +150,8 @@ void initialize_hdata(hdata* hd, setgraph* h)
 	
 	vertex* i2hv = malloc(h->nv*sizeof(vertex));
 	order_vertices(h, i2hv);
+// 	for (int i = 0; i<h->nv; ++i) // to disable the sorting of H's vertices
+// 		i2hv[i]=i;
 	for (int i = 0; i<h->nv; ++i)
 		db_print("%d ", i2hv[i]);
 	db_print("\n");
@@ -170,12 +178,23 @@ void initialize_hdata(hdata* hd, setgraph* h)
 //	hd->hv2symm[1]=0;
 //	hd->hv2symm[2]=1;
 //	hd->hv2symm[3]=2;
-//	hd->hv2symm[4]=2;
+//	hd->hv2symm[4]=3;
+//	hd->hv2numsymm[0]=4;
+//	hd->hv2numsymm[1]=3;
+//	hd->hv2numsymm[2]=2;
+//	hd->hv2numsymm[3]=1;
+//	hd->hv2numsymm[4]=0;
 	
 	db_print("hv2symm :");
 	for (hv=0; hv<h->nv; ++hv)
 	{
 		db_print(" %d", hd->hv2symm[hv]);
+	}
+	db_print("\n");
+	db_print("numsymm :");
+	for (hv=0; hv<h->nv; ++hv)
+	{
+		db_print(" %d", hd->hv2numsymm[hv]);
 	}
 	db_print("\n");
 // 	hv = hd->firsthv;
@@ -187,7 +206,10 @@ void initialize_hdata(hdata* hd, setgraph* h)
 // 	db_print("\n");
 #else
 	for (vertex hv=0; hv < hd->hnv; ++hv)
+	{
 		hd->hv2symm[hv] = hd->hnv;
+		hd->hv2numsymm[hv] = 0;
+	}
 #endif
 	free(i2hv);
 }
@@ -222,11 +244,11 @@ void initialize_searchData(searchData* restrict d, setgraph* g, setgraph* h)
 		*pp = NULL;
 		setaddeq(sofar, hv);
 		
-		d->hv2allowed[hv] = fullset(d->gnv);
+		//d->hv2allowed[hv] = fullset(d->gnv);
 		
 		hv = d->hd.hv2next[hv];
 	} while (hv != NONE);
-	d->hv2allowed[d->hd.hnv] = fullset(d->gnv);
+	d->hv2allowed[d->hd.hnv] = emptyset; //fullset(d->gnv);
 	d->free = fullset(d->gnv);
 	
 	d->numMods = 0;
@@ -406,6 +428,7 @@ void add_to_path(searchData* restrict d, path* p, vertex gv, int c1, int c2,  bi
 void build_next(searchData* restrict d, path* p, bitset bsnbhd);
 
 // start building the specified path
+// FIX ME? is the order in which we try these important?  might the assignments that we are making move others into different cases?
 void build_path(searchData* restrict d, path* p, bitset bsnbhd)
 {
 	/* initialize things */
@@ -614,11 +637,18 @@ void add_to_path(searchData* restrict d, path* p, vertex gv, int c1, int c2,  bi
 
 void build_BS(searchData* restrict d, vertex hv)
 {
-	d->hv2allowed[hv] = d->free;
+	//d->hv2allowed[hv] = d->free;
 	//d->hv2allowed[hv] = setintsct(d->free,d->hv2allowed[d->hd.hv2symm[hv]]);
-	//assert(d->hd.hv2symm[hv]==5 || d->hd.hv2symm[hv] == hv-1); // FIX ME: Hard coded test for K_5
+	d->hv2allowed[hv] = setminus(d->free, d->hv2allowed[d->hd.hv2symm[hv]]);
 	d->hv2assigned[hv] = d->hv2semiassigned[hv] = emptyset;
 	vertex gv;
+	
+	for (int i=0,v; i < d->hd.hv2numsymm[hv]; ++i)
+		if (first(d->hv2allowed[hv], &v))
+			setremoveeq(d->hv2allowed[hv], v);
+		else
+			return;
+	
 	if (d->hv2firstpath[hv] == NULL)
 	{
 		if (first(d->hv2allowed[hv], &gv)) do
