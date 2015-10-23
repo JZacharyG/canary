@@ -28,11 +28,8 @@ int main(int argc, char *argv[])
 		vertex hv, gv;
 		for (hv = 0; hv < h.nv; ++hv)
 		{
-			printf("%d :", hv);
-			if (first(hv2bs[hv], &gv)) do
-			{
-				printf(" %d", gv);
-			} while(next(hv2bs[hv], &gv, gv));
+			printf("%d : ", hv);
+			print_set(hv2bs[hv]);
 			printf("\n");
 		}
 	}

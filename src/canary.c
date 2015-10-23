@@ -235,10 +235,13 @@ void initialize_searchData(searchData* restrict d, setgraph* g, setgraph* h)
 		if (first(nbhd, &h2)) do
 		{
 			*pp = malloc(sizeof(path));
+			assert(*pp!=NULL);
  			(**pp).h1 = hv;
  			(**pp).h2 = h2;
   			for (int gv = 0; gv < d->gnv; ++gv)
  				(**pp).gv2i[gv] = NONE;
+ 			(**pp).i2psofar[0] = emptyset;
+ 			(**pp).i2nbhdsofar[0] = emptyset;
  			pp = &((**pp).next);
 		} while (next(nbhd, &h2, h2));
 		*pp = NULL;
@@ -248,7 +251,8 @@ void initialize_searchData(searchData* restrict d, setgraph* g, setgraph* h)
 		
 		hv = d->hd.hv2next[hv];
 	} while (hv != NONE);
-	d->hv2allowed[d->hd.hnv] = emptyset; //fullset(d->gnv);
+	d->hv2allowed[d->hd.hnv] = emptyset;
+	//d->hv2allowed[d->hd.hnv] = fullset(d->gnv);
 	d->free = fullset(d->gnv);
 	
 	d->numMods = 0;
@@ -571,6 +575,7 @@ void add_to_path(searchData* restrict d, path* p, vertex gv, int c1, int c2,  bi
 	
 	// This is to respect the hv2allowed sets.
 	// Note: len is the position where gv will be
+// 	db_print("%d -- %d\n", p->h1, p->h2);
 	if (!setget(d->hv2allowed[p->h2],gv))
 		c1 = p->len;
 	if (!setget(d->hv2allowed[p->h1],gv))

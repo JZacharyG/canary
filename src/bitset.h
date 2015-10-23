@@ -6,6 +6,8 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
+
 #if MAXNV <= 32
 typedef uint32_t bitset;
 #elif MAXNV <= 64
@@ -15,25 +17,25 @@ typedef uint64_t bitset;
 // look-up table for the location of the least significant (right-most)
 // non-zero bit in a byte. More accurately (because 0 -> 8), the number
 // of trailing 0s in a byte.
-static const int firstbit[] =
-{
-	8,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-	6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-	7,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-	6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0
-};
+// static const int firstbit[] =
+// {
+// 	8,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+// 	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+// 	6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+// 	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+// 	7,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+// 	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+// 	6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+// 	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0
+// };
 
 #define setmask(n)       (~((bitset)(-1) << (n)))
 #define emptyset         ((bitset)0)
@@ -156,13 +158,41 @@ static inline bitset relabel(bitset in, int* old2new)
 
 
 //http://graphics.stanford.edu/~seander/bithacks.html#NextBitPermutation
-// next subbitset of the same size
+// next subset of the same size
 //bitset v; // current permutation of bits
 //bitset w; // next permutation of bits
 
-//bitset t = v | (v - 1); // t gets v's least significant 0 bits bitset to 1
-// Next bitset to 1 the most significant bit to change,
-// bitset to 0 the least significant ones, and add the necessary 1 bits.
+//bitset t = v | (v - 1); // t gets v's least significant 0 bits set to 1
+// Next set to 1 the most significant bit to change,
+// set to 0 the least significant ones, and add the necessary 1 bits.
 //w = (t + 1) | (((~t & -~t) - 1) >> (__builtin_ctz(v) + 1));
+
+// returns the next subset on the same number of vertices
+static inline bitset nextkset(bitset old)
+{
+	bitset t = old | (old-1);
+#if MAXNV <= 32
+	return (t + 1) | (((~t & -~t) - 1) >> (__builtin_ctzl(old) + 1));
+#elif MAXNV <= 64
+	return (t + 1) | (((~t & -~t) - 1) >> (__builtin_ctzll(old) + 1));
+#endif
+}
+
+static inline void print_set(bitset s)
+{
+	int v;
+	printf("{");
+	if (first(s, &v)) 
+	{
+		printf("%d", v);
+		while(next(s, &v, v))
+		{
+			printf(" %d", v);
+		}
+	}
+	else
+		printf(" ");
+	printf("}");
+}
 
 #endif

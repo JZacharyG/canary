@@ -1,5 +1,5 @@
 objects = setgraph.o canary.o
-targets = findMinor filterMinor #genmf
+targets = findMinor filterMinor genmf
 
 NAUTY=../nauty25r9
 #MNE=../mne-files
@@ -8,7 +8,7 @@ NAUTY=../nauty25r9
 CC = cc
 CFLAGS = -Ofast -I$(NAUTY) $(NAUTY)/nauty.a
 debug: CFLAGS = -O0 -I$(NAUTY) $(NAUTY)/nauty.a -g -DDEBUG=1
-nonauty: CFLAGS = -Ofast -DEXCLUDE_NAUTY
+nonauty: CFLAGS = -O0 -DEXCLUDE_NAUTY -DDEBUG=1 -g
 SOURCE_DIR = src
 OBJECT_DIR = obj
 EXE_DIR = exe
