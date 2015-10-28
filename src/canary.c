@@ -1,5 +1,5 @@
-/* Canary
- * Testing things for minors.
+/* Canary.
+ * Tests things for minors.
  * 
  * This file provides a function that, given two simple graphs G and H, tests
  * if H is a minor of G.
@@ -39,14 +39,14 @@ typedef struct
 	bitset oldassigned1, oldassigned2, oldsemi1, oldsemi2; // FIX ME? We could recompute instead of storing.
 } mod;
 
-// c1 and c2 should not be used at all on an incomplete path; they are only bitset as a path is completed
+// c1 and c2 should not be used at all on an incomplete path; they are only set as a path is completed
 // 
 struct path
 {
-	vertex h1, h2; // the two branch sets that this path connects.  the search starts from h1's branch bitset and proceeds towards h2's.
+	vertex h1, h2; // the two branch sets that this path connects.  the search starts from h1's branch set and proceeds towards h2's.
 	
-	// the indices of the last vertex known to be part of the branch bitset 1
-	// and first known to be part of branch bitset 2.
+	// the indices of the last vertex known to be part of the branch set 1
+	// and first known to be part of branch set 2.
 	int c1, c2;
 	
 //	int i2Gv[MAXNV];
@@ -174,16 +174,6 @@ void initialize_hdata(hdata* hd, setgraph* h)
 	
 #ifndef EXCLUDE_NAUTY
 	findHSymmetries(hd,h);
-//	hd->hv2symm[0]=5;
-//	hd->hv2symm[1]=0;
-//	hd->hv2symm[2]=1;
-//	hd->hv2symm[3]=2;
-//	hd->hv2symm[4]=3;
-//	hd->hv2numsymm[0]=4;
-//	hd->hv2numsymm[1]=3;
-//	hd->hv2numsymm[2]=2;
-//	hd->hv2numsymm[3]=1;
-//	hd->hv2numsymm[4]=0;
 	
 	db_print("hv2symm :");
 	for (hv=0; hv<h->nv; ++hv)
@@ -469,6 +459,8 @@ void build_path(searchData* restrict d, path* p, bitset bsnbhd)
 	} while (next(s, &nbr, nbr));
 	
 	
+	// FIX ME: Probably keep track of bsnbhd for each hv, to facilitate some of these computations
+	
 	
 	// if semiassigned h1 is adjacent to assigned h2
 	// it sure would be nice if we had the nbhd of h2 available, but alas.
@@ -478,11 +470,12 @@ void build_path(searchData* restrict d, path* p, bitset bsnbhd)
 	path* vp; // v's path
 	bitset newbsnbhd;
 	s = d->hv2semiassigned[p->h1];
-	if (first(s, &v)) do
+	if (first(d->hv2semiassigned[p->h1], &v)) do
 	{
 		vp = d->gv2p[v];
-		nbhd = setminus(vp->i2psofar[vp->gv2i[v]], vp->i2psofar[vp->gv2i[v]-1]);
+		nbhd = setminus(vp->i2nbhdsofar[vp->gv2i[v]], vp->i2nbhdsofar[vp->gv2i[v]-1]);
 		setintscteq(nbhd, d->hv2assigned[p->h2]);
+		//if (setsize(d->hv2semiassigned[p->h1])>1) printf("attempting...");
 		if (setnonempty(nbhd)) // This only needs to happen once per v.
 		{
 			fix_BS(d, v, p->h1);
@@ -491,9 +484,12 @@ void build_path(searchData* restrict d, path* p, bitset bsnbhd)
 			build_next(d,p,newbsnbhd);
 			assert(enteringNumMods == d->numMods);
 			undo_last_mod(d);
-			fix_BS_not(d, v, p->h1);
+			//if (setsize(d->hv2semiassigned[p->h1])>1) printf("%d", setsize(d->hv2semiassigned[p->h1]));
+			fix_BS_not(d, v, p->h1); // FIX ME!  Looks like we are changing the set that we are indexing over! Also, should only be taking the first one in each path?  We aren't quite filtering these the way we should.
+			//if (setsize(d->hv2semiassigned[p->h1])>0) printf("->%d", setsize(d->hv2semiassigned[p->h1]));
 		}
-	} while (next(s, &v, v));
+		//if (setsize(d->hv2semiassigned[p->h1])>0) printf("\n");
+	} while (next(d->hv2semiassigned[p->h1], &v, v));
 	
 	
 	
@@ -684,7 +680,7 @@ void build_BS(searchData* restrict d, vertex hv)
 	}
 }
 
-// build the next path or branch bitset as appropriate.
+// build the next path or branch set as appropriate.
 void build_next(searchData* restrict d, path* p, bitset bsnbhd)
 {
 	assert(d!=NULL && p!=NULL);
