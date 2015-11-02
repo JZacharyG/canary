@@ -181,7 +181,7 @@ static inline bitset nextkset(bitset old)
 static inline void print_set(bitset s)
 {
 	int v;
-	printf("{");
+	//printf("{");
 	if (first(s, &v)) 
 	{
 		printf("%d", v);
@@ -192,7 +192,7 @@ static inline void print_set(bitset s)
 	}
 	else
 		printf(" ");
-	printf("}");
+	//printf("}");
 }
 
 #endif

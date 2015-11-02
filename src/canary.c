@@ -126,7 +126,65 @@ void ensure_valid(searchData* d)
 			assert(p->i2nbhdsofar[i] == setunion(p->i2nbhdsofar[i-1], d->gv2nbhd[gv]));
 		}
 	}
-	printf("passed!\n");
+	//printf("passed!\n");
+#endif
+}
+
+void print_search_data(searchData* d, vertex upto_hv, path* upto_p)
+{
+#if DEBUG==1
+	vertex hv = d->hd.firsthv;
+	while (hv != NONE)
+	{
+		printf("%d: ", hv);
+		print_set(d->hv2assigned[hv]);
+		if (setnonempty(d->hv2semiassigned[hv]))
+		{
+			printf(" (");
+			print_set(d->hv2semiassigned[hv]);
+			printf(")");
+		}
+		printf("\n");
+		printf("\tallowed: ");
+		print_set(d->hv2allowed[hv]);
+		printf("\n");
+		if (hv == upto_hv)
+			break;
+		hv = d->hd.hv2next[hv];
+	}
+	printf("free: ");
+	print_set(d->free);
+	printf("\n\n");
+	
+	if (upto_p == NULL)
+		return;
+	hv=d->hd.firsthv;
+	while (hv != NONE)
+	{
+		path* p = d->hv2firstpath[hv];
+		while (p != NULL)
+		{
+			printf("[%d] ", p->h1);
+			for (int i=1;; ++i)
+			{
+				if (p->c1 == i-1)
+					printf(")");
+				printf(" ");
+				if (p->c2 == i)
+					printf("(");
+				if  (i == p->len)
+					break;
+				print_set(setminus(p->i2psofar[i], p->i2psofar[i-1]));
+			}
+			printf(" [%d]   (len:%d)\n", p->h2, p->len);
+			if (p == upto_p)
+				break;
+			p = p->next;
+		}
+		if (hv == upto_hv)
+			break;
+		hv = d->hd.hv2next[hv];
+	}
 #endif
 }
 
@@ -283,8 +341,8 @@ void initialize_searchData(searchData* restrict d, setgraph* g, setgraph* h)
 		
 		hv = d->hd.hv2next[hv];
 	} while (hv != NONE);
-	d->hv2allowed[d->hd.hnv] = emptyset;
-	//d->hv2allowed[d->hd.hnv] = fullset(d->gnv);
+	//d->hv2allowed[d->hd.hnv] = emptyset;
+	d->hv2allowed[d->hd.hnv] = fullset(d->gnv);
 	d->free = fullset(d->gnv);
 	
 	d->numMods = 0;
@@ -485,6 +543,8 @@ void build_path(searchData* restrict d, path* p, bitset bsnbhd)
 	assert(p != NULL);
 	int firstMod = d->numMods;
 	p->c1=0; p->c2=1; p->len=1;
+	db_print("Attempting to make a path from %d to %d\n", p->h1, p->h2);
+	print_search_data(d, p->h1, p);
 	
 	// if assigned h1 is adjacent to assigned h2
 	if (setnonempty(setintsct(bsnbhd, d->hv2assigned[p->h2])))
@@ -713,17 +773,24 @@ void add_to_path(searchData* restrict d, path* p, vertex gv, int c1, int c2,  bi
 
 void build_BS(searchData* restrict d, vertex hv)
 {
+	// FIX ME!! Using those anchors ruled out by symmetric vertices is BROKEN!
+	// taking a setminus isn't actually the operation that you want.  Think about how it plays when there is a chan of three vertices.
+	db_print("Attempting to find a branch set for %d\n", hv);
 	//d->hv2allowed[hv] = d->free;
-	//d->hv2allowed[hv] = setintsct(d->free,d->hv2allowed[d->hd.hv2symm[hv]]);
-	d->hv2allowed[hv] = setminus(d->free, d->hv2allowed[d->hd.hv2symm[hv]]);
+	d->hv2allowed[hv] = setintsct(d->free,d->hv2allowed[d->hd.hv2symm[hv]]);
+	//d->hv2allowed[hv] = setminus(d->free, d->hv2allowed[d->hd.hv2symm[hv]]);
 	d->hv2assigned[hv] = d->hv2semiassigned[hv] = emptyset;
 	vertex gv;
+	print_search_data(d, hv, NULL);
+// 	for (int i=0,v; i < d->hd.hv2numsymm[hv]; ++i)
+// 		if (first(d->hv2allowed[hv], &v))
+// 		{
+// 			setremoveeq(d->hv2allowed[hv], v);
+// 			db_print("\tremoving %d...\n", v);
+// 		}
+// 		else
+// 			return;
 	
-	for (int i=0,v; i < d->hd.hv2numsymm[hv]; ++i)
-		if (first(d->hv2allowed[hv], &v))
-			setremoveeq(d->hv2allowed[hv], v);
-		else
-			return;
 	
 	if (d->hv2firstpath[hv] == NULL)
 	{
@@ -732,6 +799,7 @@ void build_BS(searchData* restrict d, vertex hv)
 			setremoveeq(d->free, gv);
 			setaddeq(d->hv2assigned[hv], gv);
 			
+			db_print("\t*Trying %d\n", gv);
 			build_BS(d, d->hd.hv2next[hv]);
 			
 			setaddeq(d->free, gv);
@@ -746,6 +814,7 @@ void build_BS(searchData* restrict d, vertex hv)
 			setremoveeq(d->free, gv);
 			setaddeq(d->hv2assigned[hv], gv);
 			
+			db_print("\tTrying %d\n", gv);
 			build_path(d, d->hv2firstpath[hv], d->gv2nbhd[gv]);
 			
 			setaddeq(d->free, gv);
@@ -788,7 +857,7 @@ bool has_minor(setgraph* g, setgraph* h, bitset* hv2bs)
 	searchData d;
 	initialize_hdata(&d.hd, h);
 	initialize_searchData(&d, &sorted_g, h);
-//	initialize_searchData(&d, g, h);
+//	initialize_searchData(&d, g, h); // FIX ME: This is just a temporary thing to help the debugging.
 	
 	if (setjmp(d.victory))
 	{
