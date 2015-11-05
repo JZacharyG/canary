@@ -91,7 +91,7 @@ typedef struct
 
 void ensure_valid(searchData* d)
 {
-#if DEBUG==1
+#if DEBUG
 	for (vertex h1=0; h1 < d->hd.hnv; ++h1)
 	{
 		if (setnonempty(setintsct(d->hv2assigned[h1], d->hv2semiassigned[h1])))

@@ -38,6 +38,60 @@ void g62setgraph(const char g6[], setgraph* g) {
   }
 }
 
+void gpl2setgraph(const char gpl[], setgraph* g)
+{
+	const char* c=gpl;
+	int nv=0;
+	while (*c!='.')
+	{
+		if ('a' <= *c && *c <= 'z')
+		{
+			int v = (int)((*c)-'a')+1;
+			if (v>nv) nv = v;
+		}
+		else if (*c == '\0')
+		{
+			fprintf(stderr, "gpl2setgraph: pretty abrupt ending. Perhaps you forgot a '.'?\n");
+			exit(1);
+		}
+		else if (*c != ' ')
+		{
+			fprintf(stderr, "gpl2setgraph: unexpected character %c\n", *c);
+			exit(1);
+		}
+		++c;
+	}
+	
+	allocate_setgraph(g, nv);
+	
+	c=gpl;
+	while (*c != '.')
+	{
+		if ('a' <= *c && *c <= 'z')
+		{
+			int prev = (int)(*c-'a');
+			++c;
+			while ('a' <= *c && *c <= 'z')
+			{
+				int v = (int)((*c)-'a');
+				if (v == prev)
+				{
+					fprintf(stderr, "gpl2setgraph: No loops, please.\n");
+					exit(1);
+				}
+				add_edge(g, prev, v);
+				prev=v;
+				++c;
+			}
+		}
+		
+		while (*c == ' ')
+		{
+			++c;
+		}
+	}
+}
+
 // FIX ME.  Make this style more consistent with the rest of the code.
 void print_adjacency_list(const setgraph * const g) {
   int i, j;

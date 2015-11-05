@@ -32,15 +32,19 @@ int main(int argc, char** argv)
 {
 	// parse arguments
 	
-	int nv = 6;
-	for (int n=1; n<nv; ++n)
-	{
-		bitset p = setmask(n);
-		while (!setget(p,nv))
-		{
-			print_set(p);
-			printf("\n");
-			p = nextkset(p);
-		}
-	}
+// 	int nv = 4;
+// 	for (int n=1; n<nv; ++n)
+// 	{
+// 		bitset p = setmask(n);
+// 		while (!setget(p,nv))
+// 		{
+// 			print_set(p);
+// 			printf("\n");
+// 			p = nextkset(p);
+// 		}
+// 	}
+	
+	setgraph g;
+	gpl2setgraph(argv[1], &g);
+	print_adjacency_list(&g);
 }

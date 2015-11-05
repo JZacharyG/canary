@@ -40,6 +40,7 @@ static inline void add_edge(setgraph* s, int v1, int v2)
 }
 
 void g62setgraph(const char g6[], setgraph* g);
+void gpl2setgraph(const char gpl[], setgraph* g);
 void print_adjacency_list(const setgraph* const g);
 void order_vertices(const setgraph* const g, vertex* const i2v);
 void rev_order_vertices(const setgraph* const g, vertex* const i2v);
