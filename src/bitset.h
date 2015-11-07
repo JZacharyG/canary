@@ -49,7 +49,8 @@ typedef uint64_t bitset;
 #define setadd(s,i)      ((s) |  singleton(i))
 #define settoggle(s,i)   ((s) ^  singleton(i))
 #define setremove(s,i)   ((s) & ~singleton(i))
-
+#define setrange(s,i,j)  ((s) & setmask(j) & ((bitset)(-1) << (i)))
+// all t in s, i<= t < j
 
 //#define setcomp(s,n)     (~(s) & setmask((n)))
 #define setcomp(s,n)     (s ^ setmask((n)))
@@ -57,11 +58,12 @@ typedef uint64_t bitset;
 #define setunioneq(s1,s2)  ((s1) |= (s2))
 #define setintscteq(s1,s2) ((s1) &= (s2))
 #define setminuseq(s1,s2)  ((s1) &= ~(s2))
-#define setaddeq(s,i)      ((s) |= (bitset)1 << (i))
-#define settoggleeq(s,i)   ((s) ^= (bitset)1 << (i))
-#define setremoveeq(s,i)   ((s) &= ~((bitset)1 << (i)))
+#define setaddeq(s,i)      ((s) |= singleton(i))
+#define settoggleeq(s,i)   ((s) ^= singleton(i))
+#define setremoveeq(s,i)   ((s) &= ~(singleton(i)))
 //#define setcompeq(s,n)     ((s) = setcomp((s),(n)))
 #define setcompeq(s,n)     ((s) ^= setmask((n)))
+
 
 #define setnonempty(s)     (s)
 #define issubset(s1,s2)    (!((~(s1))&(s2))) // is s2 a subset of s1
@@ -72,6 +74,11 @@ typedef uint64_t bitset;
 #elif MAXNV <= 64
 #define setsize(s)         (__builtin_popcountll(s))
 #endif
+
+static inline bitset setremovefirst(bitset s)
+{
+	return s & (s-1);
+}
 
 static inline bool first(bitset s, int* i)
 {

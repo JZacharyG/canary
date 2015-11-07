@@ -36,7 +36,7 @@ typedef struct
 {
 	path* p;
 	int oldc1, oldc2;
-	bitset oldassigned1, oldassigned2, oldsemi1, oldsemi2; // FIX ME? We could recompute instead of storing.
+	bitset oldassigned1, oldassigned2, oldsemi1, oldsemi2;
 } mod;
 
 // c1 and c2 should not be used at all on an incomplete path; they are only set as a path is completed
@@ -64,7 +64,7 @@ struct hdata
 	int hnv;
 	vertex firsthv;
 	vertex hv2next[MAXNV]; // the order in which to carry out the search for branch sets.
-	vertex hv2symm[MAXNV]; // To take advantage of automorphisms in H, each vertex can point to an earlier one, in which case it's anchors are restricted to the rejected anchors of that vertex.  hv2allowed[hnv] will always be the empty set, so those without symmetry will point there.
+	vertex hv2symm[MAXNV]; // To take advantage of automorphisms in H, each vertex can point to an earlier one, in which case it's anchors are chosen to be smaller than the anchor of that vertex.  hv2anchor[hnv] will always be gnv, so those without symmetry will point there.
 	int hv2numsymm[MAXNV]; // the number of vertices that will restrict themselves (directly or indirectly) to this vertex's rejected anchors.
 };
 
@@ -80,8 +80,9 @@ typedef struct
 	bitset free;
 	bitset hv2assigned[MAXNV];
 	bitset hv2semiassigned[MAXNV];
-	bitset hv2allowed[MAXNV+1];
 	path* hv2firstpath[MAXNV];
+	
+	vertex hv2anchor[MAXNV];
 	
 	path* gv2p[MAXNV]; // vertices in G
 	
@@ -95,7 +96,7 @@ void ensure_valid(searchData* d)
 	for (vertex h1=0; h1 < d->hd.hnv; ++h1)
 	{
 		if (setnonempty(setintsct(d->hv2assigned[h1], d->hv2semiassigned[h1])))
-			{ printf("%d's assigned and semiassigned overlap overlap\n", h1); assert(0); }
+			{ printf("%d's assigned and semiassigned overlap\n", h1); assert(0); }
 		for (vertex h2=h1+1; h2 < d->hd.hnv; ++h2)
 		{
 			
@@ -145,8 +146,7 @@ void print_search_data(searchData* d, vertex upto_hv, path* upto_p)
 			printf(")");
 		}
 		printf("\n");
-		printf("\tallowed: ");
-		print_set(d->hv2allowed[hv]);
+		printf("\tanchor: %d",d->hv2anchor[hv]);
 		printf("\n");
 		if (hv == upto_hv)
 			break;
@@ -215,20 +215,6 @@ void findHSymmetries(hdata* d, setgraph* h)
 			labels[j] = w;
 			ptn[j] = (j < i)?0:1;
 		}
-		//db_print("labels:[");
-		//for (j=0, w=d->firsthv; j<n; ++j, w=d->hv2next[w])
-		//{
-		//	db_print(" %d",labels[j]);
-		//}
-		//db_print("]\n");
-		//db_print("ptn:[");
-		//for (j=0, w=d->firsthv; j<n; ++j, w=d->hv2next[w])
-		//{
-		//	db_print(" %d",ptn[j]);
-		//}
-		//db_print("]\n");
-
-		
 		ptn[n-1] = 0;
 		densenauty(nh, labels, ptn, orbits, &options, &stats, m, d->hnv, NULL);
 		d->hv2numsymm[v] = 0;
@@ -336,13 +322,9 @@ void initialize_searchData(searchData* restrict d, setgraph* g, setgraph* h)
 		} while (next(nbhd, &h2, h2));
 		*pp = NULL;
 		setaddeq(sofar, hv);
-		
-		//d->hv2allowed[hv] = fullset(d->gnv);
-		
 		hv = d->hd.hv2next[hv];
 	} while (hv != NONE);
-	//d->hv2allowed[d->hd.hnv] = emptyset;
-	d->hv2allowed[d->hd.hnv] = fullset(d->gnv);
+	d->hv2anchor[d->hd.hnv] = d->gnv;
 	d->free = fullset(d->gnv);
 	
 	d->numMods = 0;
@@ -535,7 +517,6 @@ void add_to_path(searchData* restrict d, path* p, vertex gv, int c1, int c2,  bi
 void build_next(searchData* restrict d, path* p, bitset bsnbhd);
 
 // start building the specified path
-// FIX ME? is the order in which we try these important?  might the assignments that we are making move others into different cases?
 void build_path(searchData* restrict d, path* p, bitset bsnbhd)
 {
 	/* initialize things */
@@ -594,7 +575,6 @@ void build_path(searchData* restrict d, path* p, bitset bsnbhd)
 		assert(vp->h1 == p->h1);
 		nbhd = setminus(vp->i2nbhdsofar[vp->gv2i[v]], vp->i2nbhdsofar[vp->gv2i[v]-1]);
 		setintscteq(nbhd, d->hv2assigned[p->h2]);
-		//if (setsize(d->hv2semiassigned[p->h1])>1) printf("attempting...");
 		if (setnonempty(nbhd)) // This only needs to happen once per v.
 		{
 			ensure_valid(d);
@@ -604,19 +584,13 @@ void build_path(searchData* restrict d, path* p, bitset bsnbhd)
 			build_next(d,p,newbsnbhd);
 			assert(enteringNumMods == d->numMods);
 			undo_last_mod(d);
-			//if (setsize(d->hv2semiassigned[p->h1])>1) printf("%d", setsize(d->hv2semiassigned[p->h1]));
-			fix_BS_not(d, v, p->h1); // FIX ME!  Looks like we are changing the set that we are indexing over! Also, should only be taking the first one in each path?  We aren't quite filtering these the way we should.
-			//if (setsize(d->hv2semiassigned[p->h1])>0) printf("->%d", setsize(d->hv2semiassigned[p->h1]));
+			fix_BS_not(d, v, p->h1);
 			ensure_valid(d);
 		}
-		//if (setsize(d->hv2semiassigned[p->h1])>0) printf("\n");
 	} while (next(d->hv2semiassigned[p->h1], &v, v));
 	
-	
-	s = d->hv2semiassigned[p->h1];
-
 	// if semiassigned h1 is adjacent to semiassigned h2
-	// s should still hold the semiassigned vertices
+	s = d->hv2semiassigned[p->h1];
 	ensure_valid(d);
 	if (first(s, &v)) do
 	{
@@ -649,21 +623,16 @@ void build_path(searchData* restrict d, path* p, bitset bsnbhd)
 		}
 	} while (next(s, &v, v));
 	
-	
-	
 	// paths that start from something assigned to h1
 	s = setintsct(bsnbhd, d->free);
 	ensure_valid(d);
 	if (first(s, &nbr)) do
 	{
-		
 		int enteringNumMods = d->numMods;
 		add_to_path(d, p, nbr, 0, MAXNV, bsnbhd);
 		assert(enteringNumMods == d->numMods);
 		ensure_valid(d);
 	} while (next(s, &nbr, nbr));
-	
-	
 	
 	// paths that start from something semiassigned to h1
 	s = d->hv2semiassigned[p->h1];
@@ -692,19 +661,17 @@ void build_path(searchData* restrict d, path* p, bitset bsnbhd)
 	undo_mods(d, firstMod);
 }
 
-// assumes that lastGv is allowed to be added to the given path.
+// assumes that gv is 'allowed' to be added to the given path, in that it is adjacent to the previous vertex on its path and it is not immediately redundant.
 // Adds it, continues the search, and returns if it fails to build this into a complete model for the minor (jumps if successful).
 void add_to_path(searchData* restrict d, path* p, vertex gv, int c1, int c2,  bitset bsnbhd)
 {
 	// if we are using vertices that are not allowed in one or both of the branch sets, adjust the cutoffs accordingly.
 	assert(c1 < c2);
 	
-	// This is to respect the hv2allowed sets.
 	// Note: len is the position where gv will be
-// 	db_print("%d -- %d\n", p->h1, p->h2);
-	if (!setget(d->hv2allowed[p->h2],gv))
+	if (d->hv2anchor[p->h2] > gv)
 		c1 = p->len;
-	if (!setget(d->hv2allowed[p->h1],gv))
+	if (d->hv2anchor[p->h1] > gv)
 		c2 = min(c2, p->len);
 	if (c1 >= c2)
 		return;
@@ -773,55 +740,51 @@ void add_to_path(searchData* restrict d, path* p, vertex gv, int c1, int c2,  bi
 
 void build_BS(searchData* restrict d, vertex hv)
 {
-	// FIX ME!! Using those anchors ruled out by symmetric vertices is BROKEN!
-	// taking a setminus isn't actually the operation that you want.  Think about how it plays when there is a chan of three vertices.
+	
 	db_print("Attempting to find a branch set for %d\n", hv);
-	//d->hv2allowed[hv] = d->free;
-	d->hv2allowed[hv] = setintsct(d->free,d->hv2allowed[d->hd.hv2symm[hv]]);
-	//d->hv2allowed[hv] = setminus(d->free, d->hv2allowed[d->hd.hv2symm[hv]]);
-	d->hv2assigned[hv] = d->hv2semiassigned[hv] = emptyset;
-	vertex gv;
+	vertex* anchorp = &d->hv2anchor[hv];
 	print_search_data(d, hv, NULL);
-// 	for (int i=0,v; i < d->hd.hv2numsymm[hv]; ++i)
-// 		if (first(d->hv2allowed[hv], &v))
-// 		{
-// 			setremoveeq(d->hv2allowed[hv], v);
-// 			db_print("\tremoving %d...\n", v);
-// 		}
-// 		else
-// 			return;
 	
+// 	bitset s = setrange(d->free, d->hd.hv2numsymm[hv], d->hv2anchor[d->hd.hv2symm[hv]]);
+	bitset s = setintsct(d->free, setmask(d->hv2anchor[d->hd.hv2symm[hv]]));
+	for (int retain = d->hd.hv2numsymm[hv]; retain; --retain)
+		s=setremovefirst(s);
 	
+	if (DEBUG)
+	{
+		printf("%d <= free < %d ?: ", d->hd.hv2numsymm[hv], d->hv2anchor[d->hd.hv2symm[hv]]);
+		print_set(s);
+		printf("\n");
+	}
 	if (d->hv2firstpath[hv] == NULL)
 	{
-		if (first(d->hv2allowed[hv], &gv)) do
+		while (first(s, anchorp))
 		{
-			setremoveeq(d->free, gv);
-			setaddeq(d->hv2assigned[hv], gv);
+			setremoveeq(d->free, *anchorp);
+			d->hv2assigned[hv] = singleton(*anchorp);
+			d->hv2semiassigned[hv] = emptyset;
 			
-			db_print("\t*Trying %d\n", gv);
 			build_BS(d, d->hd.hv2next[hv]);
 			
-			setaddeq(d->free, gv);
-			d->hv2assigned[hv] = d->hv2semiassigned[hv] = emptyset;
-			setremoveeq(d->hv2allowed[hv], gv);
-		} while(next(d->hv2allowed[hv], &gv, gv));
+			setaddeq(d->free, *anchorp);
+			setremoveeq(s, *anchorp);
+		}
 	}
 	else
 	{
-		if (first(d->hv2allowed[hv], &gv)) do
+		while (first(s, anchorp))
 		{
-			setremoveeq(d->free, gv);
-			setaddeq(d->hv2assigned[hv], gv);
+			setremoveeq(d->free, *anchorp);
+			d->hv2assigned[hv] = singleton(*anchorp);
+			d->hv2semiassigned[hv] = emptyset;
 			
-			db_print("\tTrying %d\n", gv);
-			build_path(d, d->hv2firstpath[hv], d->gv2nbhd[gv]);
+			build_path(d, d->hv2firstpath[hv], d->gv2nbhd[*anchorp]);
 			
-			setaddeq(d->free, gv);
-			d->hv2assigned[hv] = d->hv2semiassigned[hv] = emptyset;
-			setremoveeq(d->hv2allowed[hv], gv);
-		} while(next(d->hv2allowed[hv], &gv, gv));
+			setaddeq(d->free, *anchorp);
+			setremoveeq(s, *anchorp);
+		}
 	}
+	d->hv2assigned[hv] = d->hv2semiassigned[hv] = emptyset;
 }
 
 // build the next path or branch set as appropriate.
@@ -857,7 +820,7 @@ bool has_minor(setgraph* g, setgraph* h, bitset* hv2bs)
 	searchData d;
 	initialize_hdata(&d.hd, h);
 	initialize_searchData(&d, &sorted_g, h);
-//	initialize_searchData(&d, g, h); // FIX ME: This is just a temporary thing to help the debugging.
+//	initialize_searchData(&d, g, h);
 	
 	if (setjmp(d.victory))
 	{
@@ -880,18 +843,10 @@ bool has_minor(setgraph* g, setgraph* h, bitset* hv2bs)
 	}
 	else
 	{
-		// run search
 		build_BS(&d, d.hd.firsthv);
 	}
 	
 	ensure_valid(&d);
-// 	db_print("hv2symm :");
-// 	for (vertex hv=0; hv<h->nv; ++hv)
-// 	{
-// 		db_print(" %d", d.hd.hv2symm[hv]);
-// 	}
-// 	db_print("\n");
-	// clean up
 	
 	for (int i = 0; i < d.hd.hnv; ++i)
 		freepath(d.hv2firstpath[i]);
