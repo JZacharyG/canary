@@ -18,8 +18,8 @@
 #ifndef DEBUG
 #define DEBUG 0
 #endif
-#define STATS 1
-//#define STATS 0
+//#define STATS 1
+#define STATS 0
 #include <stdio.h>
 #include "debug.h"
 #include <setjmp.h>
@@ -34,22 +34,14 @@ typedef struct path path;
 
 typedef struct
 {
-	path* p;
-	int oldc1, oldc2;
-	bitset oldassigned1, oldassigned2, oldsemi1, oldsemi2;
+	vertex hva, hvb;
+	bitset oldassigned_a, oldsemi_a, oldsemi_b, oldbsnbhd_a;
+	// in fixing a vertex, we are assigning some vertices to one branch set (hva), and removing them from the semiassigned set of another (hvb)
 } mod;
 
-// c1 and c2 should not be used at all on an incomplete path; they are only set as a path is completed
-// 
 struct path
 {
 	vertex h1, h2; // the two branch sets that this path connects.  the search starts from h1's branch set and proceeds towards h2's.
-	
-	// the indices of the last vertex known to be part of the branch set 1
-	// and first known to be part of branch set 2.
-	int c1, c2;
-	
-//	int i2Gv[MAXNV];
 	
 	int len; // the next available position in the path.  actually one more than the number of vertices in the path, because we leave a blank at the 0th element
 	
@@ -71,7 +63,8 @@ struct hdata
 typedef struct
 {
 	bitset gv2nbhd[MAXNV]; // just to store the graph
-	int gnv;
+	int gnv; // FIX ME. Why am I not just storing the graph structure itself? Seriously.
+	
 	hdata hd;
 	
 	mod mods[MAXNV]; // a stack of all modifications to cutoffs.  Every mod should fix at least one additional vertex, so the number is limited to the number of vertices in G.
@@ -80,9 +73,9 @@ typedef struct
 	bitset free;
 	bitset hv2assigned[MAXNV];
 	bitset hv2semiassigned[MAXNV];
+	bitset hv2bsnbhd[MAXNV];
+	vertex hv2anchor[MAXNV+1];
 	path* hv2firstpath[MAXNV];
-	
-	vertex hv2anchor[MAXNV];
 	
 	path* gv2p[MAXNV]; // vertices in G
 	
@@ -90,13 +83,12 @@ typedef struct
 } searchData;
 
 
-void ensure_valid(searchData* d)
+void ensure_valid(searchData* d) { if (DEBUG)
 {
-#if DEBUG
 	for (vertex h1=0; h1 < d->hd.hnv; ++h1)
 	{
 		if (setnonempty(setintsct(d->hv2assigned[h1], d->hv2semiassigned[h1])))
-			{ printf("%d's assigned and semiassigned overlap\n", h1); assert(0); }
+			{ printf("%d's assigned and semiassigned overlap overlap\n", h1); assert(0); }
 		for (vertex h2=h1+1; h2 < d->hd.hnv; ++h2)
 		{
 			
@@ -128,12 +120,10 @@ void ensure_valid(searchData* d)
 		}
 	}
 	//printf("passed!\n");
-#endif
-}
+}}
 
-void print_search_data(searchData* d, vertex upto_hv, path* upto_p)
+void print_search_data(searchData* d, vertex upto_hv, path* upto_p){ if (DEBUG)
 {
-#if DEBUG==1
 	vertex hv = d->hd.firsthv;
 	while (hv != NONE)
 	{
@@ -165,16 +155,16 @@ void print_search_data(searchData* d, vertex upto_hv, path* upto_p)
 		while (p != NULL)
 		{
 			printf("[%d] ", p->h1);
-			for (int i=1;; ++i)
+			for (int i=1;i < p->len; ++i)
 			{
-				if (p->c1 == i-1)
-					printf(")");
 				printf(" ");
-				if (p->c2 == i)
+				vertex v;
+				first(setminus(p->i2psofar[i], p->i2psofar[i-1]),&v);
+				if (setget(d->hv2assigned[p->h2],v))
 					printf("(");
-				if  (i == p->len)
-					break;
-				print_set(setminus(p->i2psofar[i], p->i2psofar[i-1]));
+					printf("%d", v);
+				if (setget(d->hv2assigned[p->h1],v))
+					printf(")");
 			}
 			printf(" [%d]   (len:%d)\n", p->h2, p->len);
 			if (p == upto_p)
@@ -185,8 +175,7 @@ void print_search_data(searchData* d, vertex upto_hv, path* upto_p)
 			break;
 		hv = d->hd.hv2next[hv];
 	}
-#endif
-}
+}}
 
 
 #ifndef EXCLUDE_NAUTY
@@ -305,6 +294,7 @@ void initialize_searchData(searchData* restrict d, setgraph* g, setgraph* h)
 	{
 		d->hv2assigned[hv] = emptyset;
 		d->hv2semiassigned[hv] = emptyset;
+		d->hv2bsnbhd[hv] = emptyset;
 		int h2;
 		path** pp = &d->hv2firstpath[hv];
 		bitset nbhd = setintsct(h->nbhd[hv],sofar);
@@ -361,48 +351,47 @@ void fix_BS(searchData* restrict d, vertex gv, vertex hv) // ...
 	assert(d != NULL);
 	path* p = d->gv2p[gv];
 	assert(p != NULL);
+	assert(setget(d->hv2semiassigned[p->h1], gv));
+	assert(setget(d->hv2semiassigned[p->h2], gv));
+	assert(!setget(d->hv2assigned[p->h1], gv));
+	assert(!setget(d->hv2assigned[p->h2], gv));
 	
-	assert(!setnonempty(setintsct(d->hv2assigned[p->h1],d->hv2semiassigned[p->h1])));
-	assert(!setnonempty(setintsct(d->hv2assigned[p->h2],d->hv2semiassigned[p->h2])));
-	assert(!setnonempty(setintsct(d->hv2assigned[p->h1],d->hv2assigned[p->h2])));
-	assert(p->c1 < p->c2);
-	
-	
-	d->mods[d->numMods].p = p;
-	d->mods[d->numMods].oldc1 = p->c1;
-	d->mods[d->numMods].oldc2 = p->c2;
-	d->mods[d->numMods].oldassigned1 = d->hv2assigned[p->h1];
-	d->mods[d->numMods].oldassigned2 = d->hv2assigned[p->h2];
-	d->mods[d->numMods].oldsemi1 = d->hv2semiassigned[p->h1];
-	d->mods[d->numMods].oldsemi2 = d->hv2semiassigned[p->h2];
-	ensure_valid(d); 
+	mod* m = &d->mods[d->numMods];
 	++d->numMods;
-	bitset s;
+	
+	bitset diff, diffnbhd; // the set of vertices to be added to the hva's branch set.
 	if (p->h1 == hv)
 	{
-		p->c1 = p->gv2i[gv];
-		s = p->i2psofar[p->c1];
-		setunioneq(d->hv2assigned[p->h1], s);
-		setminuseq(d->hv2semiassigned[p->h1], s);
-		setminuseq(d->hv2semiassigned[p->h2], s);
+		m->hva = p->h1; m->hvb = p->h2;
+		diff = p->i2psofar[p->gv2i[gv]];
+		diffnbhd = p->i2nbhdsofar[p->gv2i[gv]];
 	}
 	else
 	{
 		assert(p->h2 == hv);
-		p->c2 = p->gv2i[gv];
-		s = setminus(p->i2psofar[p->len-1], p->i2psofar[p->c2-1]);
-		setunioneq(d->hv2assigned[p->h2], s);
-		setminuseq(d->hv2semiassigned[p->h1], s);
-		setminuseq(d->hv2semiassigned[p->h2], s);
+		m->hva = p->h2; m->hvb = p->h1;
+		diff = setminus(p->i2psofar[p->len-1], p->i2psofar[p->gv2i[gv]-1]);
+		diffnbhd = emptyset;
+		vertex v;
+		if (first(diff, &v)) do
+		{
+			setunioneq(diffnbhd, d->gv2nbhd[v]);
+		} while (next(diff, &v, v));
 	}
+
+	m->oldassigned_a = d->hv2assigned[m->hva];
+	m->oldsemi_a = d->hv2semiassigned[m->hva];
+	m->oldsemi_b = d->hv2semiassigned[m->hvb];
+	m->oldbsnbhd_a = d->hv2bsnbhd[m->hva];
+	
+	setunioneq(d->hv2assigned[m->hva], diff);
+	setminuseq(d->hv2semiassigned[m->hva], diff);
+	setminuseq(d->hv2semiassigned[m->hvb], diff);
+	setminuseq(d->hv2bsnbhd[m->hva], diffnbhd);
+	
 	assert(!setnonempty(setintsct(d->hv2assigned[p->h1],d->hv2semiassigned[p->h1])));
 	assert(!setnonempty(setintsct(d->hv2assigned[p->h2],d->hv2semiassigned[p->h2])));
-	if (DEBUG && setnonempty(setintsct(d->hv2assigned[p->h1],d->hv2assigned[p->h2])))
-	{
-		printf("%d overlaps with %d.  Trying to fix %d to be part of %d\n", p->h1, p->h2, gv, hv);
-	}
-	assert(p->c1 < p->c2);
-	ensure_valid(d);
+	assert(!setnonempty(setintsct(d->hv2assigned[p->h1],d->hv2assigned[p->h2])));
 }
 
 // force a vertex to be in the other branch set, if possible.
@@ -416,37 +405,43 @@ void fix_BS_not(searchData* restrict d, vertex gv, vertex hv) // :)
 	assert(setget(d->hv2semiassigned[p->h2], gv));
 	assert(!setget(d->hv2assigned[p->h1], gv));
 	assert(!setget(d->hv2assigned[p->h2], gv));
-	d->mods[d->numMods].p = p;
-	d->mods[d->numMods].oldc1 = p->c1;
-	d->mods[d->numMods].oldc2 = p->c2;
-	d->mods[d->numMods].oldassigned1 = d->hv2assigned[p->h1];
-	d->mods[d->numMods].oldassigned2 = d->hv2assigned[p->h2];
-	d->mods[d->numMods].oldsemi1 = d->hv2semiassigned[p->h1];
-	d->mods[d->numMods].oldsemi2 = d->hv2semiassigned[p->h2];
 	
+	mod* m = &d->mods[d->numMods];
 	++d->numMods;
-	bitset s;
+	
+	bitset diff, diffnbhd; // the set of vertices to be added to the hva's branch set.
 	if (p->h2 == hv)
 	{
-		p->c1 = p->gv2i[gv];
-		s = p->i2psofar[p->c1];
-		setunioneq(d->hv2assigned[p->h1], s);
-		setminuseq(d->hv2semiassigned[p->h1], s);
-		setminuseq(d->hv2semiassigned[p->h2], s);
+		m->hva = p->h1; m->hvb = p->h2;
+		diff = p->i2psofar[p->gv2i[gv]];
+		diffnbhd = p->i2nbhdsofar[p->gv2i[gv]];
 	}
 	else
 	{
 		assert(p->h1 == hv);
-		p->c2 = p->gv2i[gv];
-		s = setminus(p->i2psofar[p->len-1], p->i2psofar[p->c2-1]);
-		setunioneq(d->hv2assigned[p->h2], s);
-		setminuseq(d->hv2semiassigned[p->h1], s);
-		setminuseq(d->hv2semiassigned[p->h2], s);
+		m->hva = p->h2; m->hvb = p->h1;
+		diff = setminus(p->i2psofar[p->len-1], p->i2psofar[p->gv2i[gv]-1]);
+		diffnbhd = emptyset;
+		vertex v;
+		if (first(diff, &v)) do
+		{
+			setunioneq(diffnbhd, d->gv2nbhd[v]);
+		} while (next(diff, &v, v));
 	}
+
+	m->oldassigned_a = d->hv2assigned[m->hva];
+	m->oldsemi_a = d->hv2semiassigned[m->hva];
+	m->oldsemi_b = d->hv2semiassigned[m->hvb];
+	m->oldbsnbhd_a = d->hv2bsnbhd[m->hva];
+	
+	setunioneq(d->hv2assigned[m->hva], diff);
+	setminuseq(d->hv2semiassigned[m->hva], diff);
+	setminuseq(d->hv2semiassigned[m->hvb], diff);
+	setminuseq(d->hv2bsnbhd[m->hva], diffnbhd);
+	
 	assert(!setnonempty(setintsct(d->hv2assigned[p->h1],d->hv2semiassigned[p->h1])));
 	assert(!setnonempty(setintsct(d->hv2assigned[p->h2],d->hv2semiassigned[p->h2])));
 	assert(!setnonempty(setintsct(d->hv2assigned[p->h1],d->hv2assigned[p->h2])));
-	assert(p->c1 < p->c2);
 	ensure_valid(d);
 }
 
@@ -456,13 +451,10 @@ void undo_last_mod(searchData* restrict d) // :)
 	
 	--d->numMods;
 	mod* m = &d->mods[d->numMods];
-	m->p->c1 = m->oldc1;
-	m->p->c2 = m->oldc2;
-	d->hv2assigned[m->p->h1] = m->oldassigned1;
-	d->hv2assigned[m->p->h2] = m->oldassigned2;
-	d->hv2semiassigned[m->p->h1] = m->oldsemi1;
-	d->hv2semiassigned[m->p->h2] = m->oldsemi2;
-	ensure_valid(d);
+	d->hv2assigned[m->hva] = m->oldassigned_a;
+	d->hv2semiassigned[m->hva] = m->oldsemi_a;
+	d->hv2semiassigned[m->hvb] = m->oldsemi_b;
+	d->hv2bsnbhd[m->hva] = m->oldbsnbhd_a;
 }
 
 void undo_mods(searchData* restrict d, int n) // :)
@@ -473,18 +465,17 @@ void undo_mods(searchData* restrict d, int n) // :)
 
 void finish_path(searchData* restrict d, path* p, int c1, int c2) // :)
 {
-	p->c1 = c1;
-	p->c2 = min(c2, p->len); // nb: these might not point to a vertex of the path
+	c2 = min(c2, p->len); // nb: this might not point to a vertex of the path
 	
-	setunioneq(d->hv2assigned[p->h1], p->i2psofar[p->c1]);
-	setunioneq(d->hv2assigned[p->h2], setminus(p->i2psofar[p->len-1],p->i2psofar[p->c2-1]));
-	setunioneq(d->hv2semiassigned[p->h1], setminus(p->i2psofar[p->c2-1], p->i2psofar[p->c1]));
-	setunioneq(d->hv2semiassigned[p->h2], setminus(p->i2psofar[p->c2-1], p->i2psofar[p->c1]));
+	setunioneq(d->hv2assigned[p->h1], p->i2psofar[c1]);
+	setunioneq(d->hv2assigned[p->h2], setminus(p->i2psofar[p->len-1],p->i2psofar[c2-1]));
+	setunioneq(d->hv2semiassigned[p->h1], setminus(p->i2psofar[c2-1], p->i2psofar[c1]));
+	setunioneq(d->hv2semiassigned[p->h2], setminus(p->i2psofar[c2-1], p->i2psofar[c1]));
 	
 	assert(!setnonempty(setintsct(d->hv2assigned[p->h1],d->hv2semiassigned[p->h1])));
 	assert(!setnonempty(setintsct(d->hv2assigned[p->h2],d->hv2semiassigned[p->h2])));
 	assert(!setnonempty(setintsct(d->hv2assigned[p->h1],d->hv2assigned[p->h2])));
-	assert(p->c1 < p->c2);
+	assert(c1 < c2);
 }
 
 void unfinish_path(searchData* restrict d, path* p) // :)
@@ -523,9 +514,7 @@ void build_path(searchData* restrict d, path* p, bitset bsnbhd)
 	
 	assert(p != NULL);
 	int firstMod = d->numMods;
-	p->c1=0; p->c2=1; p->len=1;
-	db_print("Attempting to make a path from %d to %d\n", p->h1, p->h2);
-	print_search_data(d, p->h1, p);
+	p->len=1;
 	
 	// if assigned h1 is adjacent to assigned h2
 	if (setnonempty(setintsct(bsnbhd, d->hv2assigned[p->h2])))
@@ -568,26 +557,24 @@ void build_path(searchData* restrict d, path* p, bitset bsnbhd)
 	          // is adjacent to.
 	path* vp; // v's path
 	bitset newbsnbhd;
-	if (first(d->hv2semiassigned[p->h1], &v)) do
+	s = setintsct(d->hv2semiassigned[p->h1], d->hv2bsnbhd[p->h2]);
+	if (first(s, &v)) do
 	{
-		ensure_valid(d);
+		setminuseq(s,path_after(d, v, p->h1));
+	} while (next(s,&v,v));
+	if (first(s, &v)) do
+	{
 		vp = d->gv2p[v];
-		assert(vp->h1 == p->h1);
-		nbhd = setminus(vp->i2nbhdsofar[vp->gv2i[v]], vp->i2nbhdsofar[vp->gv2i[v]-1]);
-		setintscteq(nbhd, d->hv2assigned[p->h2]);
-		if (setnonempty(nbhd)) // This only needs to happen once per v.
-		{
-			ensure_valid(d);
-			fix_BS(d, v, p->h1);
-			newbsnbhd = setunion(bsnbhd, vp->i2nbhdsofar[vp->gv2i[v]]);
-			int enteringNumMods = d->numMods;
-			build_next(d,p,newbsnbhd);
-			assert(enteringNumMods == d->numMods);
-			undo_last_mod(d);
-			fix_BS_not(d, v, p->h1);
-			ensure_valid(d);
-		}
-	} while (next(d->hv2semiassigned[p->h1], &v, v));
+		fix_BS(d, v, p->h1);
+		newbsnbhd = setunion(bsnbhd, vp->i2nbhdsofar[vp->gv2i[v]]);
+		int enteringNumMods = d->numMods;
+		build_next(d,p,newbsnbhd);
+		assert(enteringNumMods == d->numMods);
+		undo_last_mod(d);
+		fix_BS_not(d, v, p->h1);
+		setintscteq(s, d->hv2semiassigned[p->h1]);
+		ensure_valid(d);
+	} while (next(s, &v, v));
 	
 	// if semiassigned h1 is adjacent to semiassigned h2
 	s = d->hv2semiassigned[p->h1];
@@ -794,7 +781,10 @@ void build_next(searchData* restrict d, path* p, bitset bsnbhd)
 	if (p->next != NULL) // more paths needed
 		build_path(d, p->next, bsnbhd);
 	else if (d->hd.hv2next[p->h1] != NONE)
+	{
+		d->hv2bsnbhd[p->h1] = bsnbhd;
 		build_BS(d, d->hd.hv2next[p->h1]);
+	}
 	else
 		longjmp(d->victory, true); // yay!
 }
