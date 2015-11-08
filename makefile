@@ -2,9 +2,6 @@ objects = setgraph.o canary.o
 targets = findMinor filterMinor genmf
 
 NAUTY=../nauty25r9
-#MNE=../mne-files
-#MNELIB=199805
-#-I$(NAUTY) -I$(MNE) -L$(MNE) -L$(NAUTY) -l$(MNELIB)
 CC = cc
 CFLAGS = -Ofast -I$(NAUTY) $(NAUTY)/nauty.a
 debug: CFLAGS = -O0 -I$(NAUTY) $(NAUTY)/nauty.a -g -DDEBUG=1
@@ -22,7 +19,8 @@ target_paths = $(addprefix $(EXE_DIR)/,$(targets))
 all: ($OBJECT_DIR) ($EXE_DIR) $(obj_paths) $(target_paths)
 clean:
 	-rm -r $(OBJECT_DIR)/*.o $(EXE_DIR)/*.dSYM $(target_paths)
-debug nonauty nonauty-debug: clean all
+nonauty: all
+debug nonauty-debug: clean all
 
 ($OBJECT_DIR):
 	mkdir -p $(OBJECT_DIR)
