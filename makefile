@@ -19,10 +19,15 @@ target_paths = $(addprefix $(EXE_DIR)/,$(targets))
 
 .phony: all clean debug nonauty
 
-all: $(obj_paths) $(target_paths)
+all: ($OBJECT_DIR) ($EXE_DIR) $(obj_paths) $(target_paths)
 clean:
 	-rm -r $(OBJECT_DIR)/*.o $(EXE_DIR)/*.dSYM $(target_paths)
 debug nonauty nonauty-debug: clean all
+
+($OBJECT_DIR):
+	mkdir -p $(OBJECT_DIR)
+($EXE_DIR):
+	mkdir -p $(EXE_DIR)
 
 $(EXE_DIR)/findMinor: $(SOURCE_DIR)/findMinor.c $(obj_paths) makefile
 	$(CC) $(CFLAGS) $< $(obj_paths) -o $@

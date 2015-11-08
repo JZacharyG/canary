@@ -1,5 +1,6 @@
 filterMinor
 findMinor
+genmf
 .DS_Store
 *.o
 *.dSYM
