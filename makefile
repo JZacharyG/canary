@@ -3,7 +3,7 @@ targets = findMinor filterMinor genmf
 
 NAUTY=../nauty25r9
 CC = cc
-CFLAGS = -O0 -g -I$(NAUTY) $(NAUTY)/nauty.a
+CFLAGS = -Ofast -I$(NAUTY) $(NAUTY)/nauty.a
 debug: CFLAGS = -O0 -I$(NAUTY) $(NAUTY)/nauty.a -g -DDEBUG=1
 nonauty-debug: CFLAGS = -O0 -DEXCLUDE_NAUTY -g -DDEBUG=1
 nonauty: CFLAGS = -Ofast -DEXCLUDE_NAUTY
