@@ -3,7 +3,7 @@ targets = findMinor filterMinor genmf
 
 NAUTY=../nauty25r9
 CC = cc
-CFLAGS = -Ofast -I$(NAUTY) $(NAUTY)/nauty.a
+CFLAGS = -O0 -g -I$(NAUTY) $(NAUTY)/nauty.a
 debug: CFLAGS = -O0 -I$(NAUTY) $(NAUTY)/nauty.a -g -DDEBUG=1
 nonauty-debug: CFLAGS = -O0 -DEXCLUDE_NAUTY -g -DDEBUG=1
 nonauty: CFLAGS = -Ofast -DEXCLUDE_NAUTY
@@ -14,18 +14,17 @@ TEST_DIR = tst
 obj_paths = $(addprefix $(OBJECT_DIR)/,$(objects))
 target_paths = $(addprefix $(EXE_DIR)/,$(targets))
 
-.phony: all clean debug nonauty
+.phony: all clean debug nonauty folders
 
-all: ($OBJECT_DIR) ($EXE_DIR) $(obj_paths) $(target_paths)
+all: folders $(obj_paths) $(target_paths)
 clean:
 	-rm -r $(OBJECT_DIR)/*.o $(EXE_DIR)/*.dSYM $(target_paths)
 nonauty: all
 debug nonauty-debug: clean all
 
-($OBJECT_DIR):
-	mkdir -p $(OBJECT_DIR)
-($EXE_DIR):
-	mkdir -p $(EXE_DIR)
+folders: obj exe
+obj exe:
+	mkdir -p $@
 
 $(EXE_DIR)/findMinor: $(SOURCE_DIR)/findMinor.c $(obj_paths) makefile
 	$(CC) $(CFLAGS) $< $(obj_paths) -o $@

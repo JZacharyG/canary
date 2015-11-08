@@ -1,5 +1,4 @@
-Todo:
-=====
+#Todo:
 
 1. (Optionally) confirm the returned model of the minor.
 2. Try out sparse mods
@@ -26,6 +25,6 @@ Todo:
 13. Keep track of components?
 14. Do something with singleton BSs?
 15. Create genmf?
-	- to ba able to start with a specific number of vertices... take a look at edge addition as our augmentation?
+	- to be able to start with a specific number of vertices... take a look at edge addition as our augmentation?
 		- orbital branching?
-		- Think about this stuff, which method might be better...
+		- 

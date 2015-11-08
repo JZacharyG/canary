@@ -1,9 +1,10 @@
 #include "canary.h"
 //#include "stopwatch.h"
 #include <stdio.h>
+#include <string.h>
 
 // [future] usage:
-//   filterMinor -[any|all|none] [-r[est] filename.g6] [-s[tats]] [-q[uiet]] -m m1 ...
+#define usageString "-[any|all|none] [-r[est] filename.g6] m1 [m2 ...]"
 // Tests graphs for the graph minors given as arguments (in g6 format).
 // 
 // It accepts graphs in g6 format from stdin and outputs to stdout the ones that
@@ -12,8 +13,6 @@
 // 
 // Optionally, prints the graphs that fail this condition to a file given after
 // the '-rest' flag.
-// If the flag '-stats' is given, this program will print to stderr the number of input graphs that were filtered out and the number that were kept, as well as the time spent checking for minors.
-// If the flag '-quiet' is given, then only the statistics will be printed, to stdout.
 
 typedef enum
 {
@@ -24,83 +23,138 @@ int main(int argc, char* argv[])
 {
 	if (argc < 2)
 	{
-		fprintf(stderr, "I'm expecting a graph6 for the minor and you aren't delivering.\n");
+		fprintf(stderr, "Usage: %s %s\n", argv[0], usageString);
 		return 1;
 	}
 	
-	setgraph* minors = malloc((argc-1)*sizeof(setgraph));
+	int argi=1;
+	filterMode mode = NONE;
+	bool saveOthers = false;
+	FILE* othersFile = NULL;
 	
-	for (int i=1; i<argc; ++i)
+	if (!strcmp(argv[argi], "-h") || !strcmp(argv[argi], "-help") || !strcmp(argv[argi], "--help"))
 	{
-		g62setgraph(argv[i], &minors[i-1]);
+		fprintf(stderr, "Usage: %s %s\n", argv[0], usageString);
+		return 1;
 	}
-	int numMinors = argc-1; // FIX ME!
+	
+	if (!strcmp(argv[argi], "-any"))
+	{
+		mode = ANY;
+		++argi;
+	}
+	else if (!strcmp(argv[argi], "-all"))
+	{
+		mode = ALL;
+		++argi;
+	}
+	else if (!strcmp(argv[argi], "-none"))
+	{
+		mode = NONE;
+		++argi;
+	}
+	
+	if (!strcmp(argv[argi], "-r") || !strcmp(argv[argi], "-rest"))
+	{
+		saveOthers = true;
+		++argi;
+		othersFile = fopen(argv[argi], "w");
+		if (othersFile == NULL)
+		{
+			fprintf(stderr, "Error: Could not create file \"%s\"\n", argv[argi]);
+			return 1;
+		}
+		++argi;
+	}
+	
+	setgraph* minors = malloc((argc-argi)*sizeof(setgraph));
+	for (int i=argi; i < argc; ++i)
+	{
+		if (argv[i][0] == '-')
+		{
+			fprintf(stderr, "Error: unrecognized argument %s\n", argv[i]);
+			fprintf(stderr, "Usage: %s %s\n", argv[0], usageString);
+			free(minors);
+			return 1;
+		}
+		g62setgraph(argv[i], &minors[i-argi]);
+	}
+	int numMinors = argc-argi;
+	if (numMinors == 0)
+	{
+		fprintf(stderr, "Error: no minors given\n");
+		fprintf(stderr, "Usage: %s %s\n", argv[0], usageString);
+		free(minors);
+		return 1;
+	}
 	setgraph g;
-	size_t strlen = 20;
+	size_t strlen = 20; // this is automatically grown as needed via getline
 	char* gstr = malloc(strlen);
 	
-	filterMode mode = NONE;
 // 	print_adjacency_list(&h);
 // 	print_adjacency_list(&g);
 	int kept=0, rejected=0;
-	bool hasAll, hasNone;
 	while ((getline(&gstr, &strlen, stdin)) > 1)
 	{
-		if (*gstr == '#') continue; // allow comments?
-		//printf("\"%s\"\n",gstr);
+		if (*gstr == '#') continue; // to allow comments.  I should probably add in something for a header, too.
 		g62setgraph(gstr, &g);
+		bool keep;
 		switch (mode)
 		{
 		case ANY:
-			++rejected;
+			keep = false;
 			for (int i=0; i<numMinors; ++i)
 			{
 				if (has_minor(&g, &minors[i], NULL))
 				{
-					--rejected; ++kept;
-					printf("%s",gstr);
+					keep = true;
 					break;
 				}
 			}
 			break;
 		case ALL:
-			hasAll = true;
+			keep = true;
 			for (int i=0; i<numMinors; ++i)
 			{
 				if (!has_minor(&g, &minors[i], NULL))
 				{
-					hasAll=false;
+					keep = false;
 					break;
 				}
 			}
-			if (hasAll)
-			{
-				++kept;
-				printf("%s",gstr);
-			}
-			else
-				++rejected;
 			break;
 		case NONE:
-			hasNone = true;
+			keep = true;
 			for (int i=0; i<numMinors; ++i)
 			{
 				if (has_minor(&g, &minors[i], NULL))
 				{
-					hasNone=false;
+					keep=false;
 					break;
 				}
 			}
-			if (hasNone)
-			{
-				++kept;
-				printf("%s",gstr);
-			}
-			else
-				++rejected;
 			break;
 		}
+		
+		if (keep)
+		{
+			++kept;
+			printf("%s",gstr);
+		}
+		else
+		{
+			++rejected;
+			if (saveOthers)
+				fprintf(othersFile, "%s", gstr);
+		}
 		//puts(argv[1]);
+		free_setgraph(&g);
 	}
 	fprintf(stderr,"%d had %s of the minor(s) and %d did not.\n", kept, ((mode==ANY)?"any":(mode==ALL)?"all":"none"), rejected);
+	
+	for (int i=0; i< numMinors; ++i)
+		free_setgraph(&minors[i]);
+	free(minors);
+	free(gstr);
+	return 0;
 }
