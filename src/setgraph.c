@@ -38,6 +38,8 @@ void g62setgraph(const char g6[], setgraph* g) {
   }
 }
 
+// Expects a string in path list format, and anything in the string after the graph is complete is ignored.
+//path list: with vertices labeled sequentially with lowercase letters starting at 'a', the graph should be given as a space delimited list of walks, with each walk being specified as a list of lowercase letters.  After the last path should be a '.' to indicate that the graph is complete.
 void gpl2setgraph(const char gpl[], setgraph* g)
 {
 	const char* c=gpl;

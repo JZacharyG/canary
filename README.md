@@ -11,7 +11,7 @@ In any case, go download or clone a copy and navigate to the project's folder on
 And just like that, you should be up and running!
 (If not, please send me an email.  This is definitely something I would like to know about.)
 
-A word of caution: I have only tested this on a 64-bit machine running OS X, compiled with Clang.  Canary currently uses some builtin functions that are defined in gcc and Clang, but are perhaps not defined for other compilers.  If you have a different setup, I would be very interested in hearing what goes wrong.
+A word of caution: I have only tested this on a 64-bit machine running OS X, compiled with Clang.  Canary currently uses some builtin functions that are defined in gcc and Clang, but it should switch to reasonable alternatives if you use a different compiler.
 
 ##Usage
 Let's say you can't remember how to get K\_3,3 as a minor of the Petersen graph.  Don't worry, we've all been there.

@@ -14,29 +14,6 @@ typedef uint32_t bitset;
 typedef uint64_t bitset;
 #endif
 
-// look-up table for the location of the least significant (right-most)
-// non-zero bit in a byte. More accurately (because 0 -> 8), the number
-// of trailing 0s in a byte.
-// static const int firstbit[] =
-// {
-// 	8,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	7,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-// 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0
-// };
-
 #define setmask(n)       (~((bitset)(-1) << (n)))
 #define emptyset         ((bitset)0)
 #define fullset(n)       setmask((n))
@@ -69,17 +46,14 @@ typedef uint64_t bitset;
 #define issubset(s1,s2)    (!((~(s1))&(s2))) // is s2 a subset of s1
 
 
-#if MAXNV <= 32
-#define setsize(s)         (__builtin_popcountl(s))
-#elif MAXNV <= 64
-#define setsize(s)         (__builtin_popcountll(s))
-#endif
+
 
 static inline bitset setremovefirst(bitset s)
 {
 	return s & (s-1);
 }
 
+#ifdef __GNUC__
 static inline bool first(bitset s, int* i)
 {
 	if (setnonempty(s))
@@ -94,57 +68,66 @@ static inline bool first(bitset s, int* i)
 	return false;
 }
 
-// static inline bool first(bitset s, int* i)
-// {
-// 	if (s & 0xFF)
-// 		{*i = firstbit[s & 0xFF]; return true;}
-// 	if (s & 0xFF00)
-// 		{*i = 8+firstbit[s >> 8 & 0xFF]; return true;}
-// 	if (s & 0xFF0000)
-// 		{*i = 16+firstbit[s >> 16 & 0xFF]; return true;}
-// 	if (s & 0xFF000000)
-// 		{*i = 24+firstbit[s >> 24 & 0xFF]; return true;}
-// 	if (s & 0xFF00000000)
-// 		{*i = 32+firstbit[s >> 32 & 0xFF]; return true;}
-// 	if (s & 0xFF0000000000)
-// 		{*i = 40+firstbit[s >> 40 & 0xFF]; return true;}
-// 	if (s & 0xFF000000000000)
-// 		{*i = 48+firstbit[s >> 48 & 0xFF]; return true;}
-// 	if (s & 0xFF00000000000000)
-// 		{*i = 56+firstbit[s >> 56 & 0xFF]; return true;}
-// 	return false;
-// }
-// 
-// bool first_binary_search(bitset s, int* i)
-// {
-// 	if (setnonempty(s))
-// 	{
-// 		if (s & 0x00000000FFFFFFFF)
-// 			if (s & 0x000000000000FFFF)
-// 				if (s & 0x00000000000000FF)
-// 					*i = firstbit[s & 0xFF];
-// 				else
-// 					*i = firstbit[s >> 8 & 0xFF];
-// 			else
-// 				if (s & 0x0000000000FF0000)
-// 					*i = firstbit[s >> 16 & 0xFF];
-// 				else
-// 					*i = firstbit[s >> 24 & 0xFF];
-// 		else
-// 			if (s & 0x0000FFFF00000000)
-// 				if (s & 0x000000FF00000000)
-// 					*i = firstbit[s >> 32 & 0xFF];
-// 				else
-// 					*i = firstbit[s >> 40 & 0xFF];
-// 			else
-// 				if (s & 0x00FF000000000000)
-// 					*i = firstbit[s >> 48 & 0xFF];
-// 				else
-// 					*i = firstbit[s >> 56 & 0xFF];
-// 		return true;
-// 	}
-// 	return false;
-// }
+#if MAXNV <= 32
+#define setsize(s)         (__builtin_popcountl(s))
+#elif MAXNV <= 64
+#define setsize(s)         (__builtin_popcountll(s))
+#endif
+
+#else
+
+// look-up table for the location of the least significant (right-most)
+// non-zero bit in a byte. More accurately (because 0 -> 8), the number
+// of trailing 0s in a byte.
+static const int firstbit[] =
+{
+	8,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	7,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
+	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0
+};
+static inline bool first(bitset s, int* i)
+{
+	if (s & 0xFF)
+		{*i = firstbit[s & 0xFF]; return true;}
+	if (s & 0xFF00)
+		{*i = 8+firstbit[s >> 8 & 0xFF]; return true;}
+	if (s & 0xFF0000)
+		{*i = 16+firstbit[s >> 16 & 0xFF]; return true;}
+	if (s & 0xFF000000)
+		{*i = 24+firstbit[s >> 24 & 0xFF]; return true;}
+#if MAXNV > 32
+	if (s & 0xFF00000000)
+		{*i = 32+firstbit[s >> 32 & 0xFF]; return true;}
+	if (s & 0xFF0000000000)
+		{*i = 40+firstbit[s >> 40 & 0xFF]; return true;}
+	if (s & 0xFF000000000000)
+		{*i = 48+firstbit[s >> 48 & 0xFF]; return true;}
+	if (s & 0xFF00000000000000)
+		{*i = 56+firstbit[s >> 56 & 0xFF]; return true;}
+#endif
+	return false;
+}
+static inline int setsize(bitset s)
+{
+	int c = 0;
+	for (c = 0; s; s >>= 1)
+		c += s & 1;
+	return c;
+}
+#endif
 
 static inline bool next(bitset s, int* i, int p)
 {
