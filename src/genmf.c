@@ -9,6 +9,11 @@
 // -f give a prefix for the created files.
 // -m after this flag, list the graphs that you would like not to be minors, in g6 format
 
+typedef enum
+{
+	false = 0, true = !0
+} bool;
+
 bool is_canon(bitset nbhd)
 {
 	return true;

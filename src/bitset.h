@@ -5,7 +5,6 @@
 // but assumes (and should maintain) that any bits that are not possible are 0
 
 #include <stdint.h>
-#include <stdbool.h>
 #include <stdio.h>
 
 #if MAXNV <= 32
@@ -29,7 +28,6 @@ typedef uint64_t bitset;
 #define setrange(s,i,j)  ((s) & setmask(j) & ((bitset)(-1) << (i)))
 // all t in s, i<= t < j
 
-//#define setcomp(s,n)     (~(s) & setmask((n)))
 #define setcomp(s,n)     (s ^ setmask((n)))
 
 #define setunioneq(s1,s2)  ((s1) |= (s2))
@@ -38,7 +36,6 @@ typedef uint64_t bitset;
 #define setaddeq(s,i)      ((s) |= singleton(i))
 #define settoggleeq(s,i)   ((s) ^= singleton(i))
 #define setremoveeq(s,i)   ((s) &= ~(singleton(i)))
-//#define setcompeq(s,n)     ((s) = setcomp((s),(n)))
 #define setcompeq(s,n)     ((s) ^= setmask((n)))
 
 
@@ -54,7 +51,7 @@ static inline bitset setremovefirst(bitset s)
 }
 
 #ifdef __GNUC__
-static inline bool first(bitset s, int* i)
+static inline int first(bitset s, int* i)
 {
 	if (setnonempty(s))
 	{
@@ -63,9 +60,9 @@ static inline bool first(bitset s, int* i)
 #elif MAXNV <= 64
 		*i = __builtin_ctzll(s);
 #endif
-		return true;
+		return 1;
 	}
-	return false;
+	return 0;
 }
 
 #if MAXNV <= 32
@@ -98,27 +95,28 @@ static const int firstbit[] =
 	5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
 	4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0
 };
-static inline bool first(bitset s, int* i)
+
+static inline int first(bitset s, int* i)
 {
 	if (s & 0xFF)
-		{*i = firstbit[s & 0xFF]; return true;}
+		{*i = firstbit[s & 0xFF]; return 1;}
 	if (s & 0xFF00)
-		{*i = 8+firstbit[s >> 8 & 0xFF]; return true;}
+		{*i = 8+firstbit[s >> 8 & 0xFF]; return 1;}
 	if (s & 0xFF0000)
-		{*i = 16+firstbit[s >> 16 & 0xFF]; return true;}
+		{*i = 16+firstbit[s >> 16 & 0xFF]; return 1;}
 	if (s & 0xFF000000)
-		{*i = 24+firstbit[s >> 24 & 0xFF]; return true;}
+		{*i = 24+firstbit[s >> 24 & 0xFF]; return 1;}
 #if MAXNV > 32
 	if (s & 0xFF00000000)
-		{*i = 32+firstbit[s >> 32 & 0xFF]; return true;}
+		{*i = 32+firstbit[s >> 32 & 0xFF]; return 1;}
 	if (s & 0xFF0000000000)
-		{*i = 40+firstbit[s >> 40 & 0xFF]; return true;}
+		{*i = 40+firstbit[s >> 40 & 0xFF]; return 1;}
 	if (s & 0xFF000000000000)
-		{*i = 48+firstbit[s >> 48 & 0xFF]; return true;}
+		{*i = 48+firstbit[s >> 48 & 0xFF]; return 1;}
 	if (s & 0xFF00000000000000)
-		{*i = 56+firstbit[s >> 56 & 0xFF]; return true;}
+		{*i = 56+firstbit[s >> 56 & 0xFF]; return 1;}
 #endif
-	return false;
+	return 0;
 }
 static inline int setsize(bitset s)
 {
@@ -129,7 +127,7 @@ static inline int setsize(bitset s)
 }
 #endif
 
-static inline bool next(bitset s, int* i, int p)
+static inline int next(bitset s, int* i, int p)
 {
 	// clear bits upto and including p, then find the first bitset bit.
 	return first(s & ((bitset)(-1) << (p+1)), i);

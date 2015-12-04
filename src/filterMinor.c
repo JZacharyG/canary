@@ -19,6 +19,11 @@ typedef enum
 	ANY, ALL, NONE
 } filterMode;
 
+typedef enum
+{
+	false = 0, true = !0
+} bool;
+
 int main(int argc, char* argv[])
 {
 	if (argc < 2)

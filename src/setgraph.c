@@ -5,37 +5,44 @@
 #define BIAS6 63
 #define SMALLN 62
 
-void g62setgraph(const char g6[], setgraph* g) {
-  int i, j, k, x;
-
-  if (*g6 == ':') {
-    fprintf(stderr, "Cannot read sparse6 format\n");
-    exit(1);
-  }
-
-  allocate_setgraph(g, *g6++ - BIAS6);
-  if (g->nv > SMALLN) {
-    for (i = 0, g->nv = 0; i < 3; ++i) {
-      g->nv = (g->nv << 6) | (*g6++ -BIAS6);
-    }
-  }
-
-  if (g->nv >= MAXNV) {
-    fprintf(stderr, "Graph of size %d is larger than maximum size %d\n", g->nv, MAXNV);
-    exit(1);
-  }
-
-  for (i = 1, k = 1; i < g->nv; ++i) {
-    for (j = 0; j < i; ++j) {
-      if (!--k) {
-        k = 6;
-        x = *(g6++) - BIAS6;
-      }
-      if ((x >> 5) & 1)
-      	add_edge(g, i, j);
-      x <<= 1;
-    }
-  }
+void g62setgraph(const char g6[], setgraph* g)
+{
+	int i, j, k, x, n;
+	
+	if (*g6 == ':')
+	{
+		fprintf(stderr, "Cannot read sparse6 format\n");
+		exit(1);
+	}
+	n = *g6++ - BIAS6;
+	if (n > SMALLN)
+	{
+		for (i = 0, n = 0; i < 3; ++i)
+		{
+			n = (n << 6) | (*g6++ - BIAS6);
+		}
+	}
+	
+	if (n >= MAXNV)
+	{
+		fprintf(stderr, "Graph of size %d is larger than maximum size %d\n", g->nv, MAXNV);
+		exit(1);
+	}
+	allocate_setgraph(g, n);
+	
+	for (i = 1, k = 1; i < n; ++i)
+	{
+		for (j = 0; j < i; ++j)
+		{
+			if (!--k) {
+				k = 6;
+				x = *(g6++) - BIAS6;
+			}
+			if ((x >> 5) & 1)
+			add_edge(g, i, j);
+			x <<= 1;
+		}
+	}
 }
 
 // Expects a string in path list format, and anything in the string after the graph is complete is ignored.
@@ -95,17 +102,21 @@ void gpl2setgraph(const char gpl[], setgraph* g)
 }
 
 // FIX ME.  Make this style more consistent with the rest of the code.
-void print_adjacency_list(const setgraph * const g) {
-  int i, j;
-  for (i = 0; i < g->nv; ++i) {
-    printf("%d :", i);
-    for (j = 0; j < g->nv; ++j) {
-      if (setget(g->nbhd[i], j)) {
-        printf(" %d", j);
-      }
-    }
-    printf("\n");
-  }
+void print_adjacency_list(const setgraph * const g)
+{
+	int i, j;
+	for (i = 0; i < g->nv; ++i)
+	{
+		printf("%d :", i);
+		for (j = 0; j < g->nv; ++j)
+		{
+			if (setget(g->nbhd[i], j))
+			{
+				printf(" %d", j);
+			}
+		}
+		printf("\n");
+	}
 }
 
 // assumes that i2v is has length at least g->nv

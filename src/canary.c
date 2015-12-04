@@ -104,8 +104,8 @@ void ensure_valid(searchData* d) { if (DEBUG)
 	for (vertex gv=0; gv < d->gnv; ++gv)
 	{
 		path* p=d->gv2p[gv];
-		if ((bool)setget(d->free,gv) && (p!=NULL))
-			{ printf("Inconsistency: free %s %d, but gv2p %s\n",(bool)setget(d->free,gv)?"has":"doesn't have", gv, (p==NULL)?"is NULL":"isn't NULL"); assert(0); }
+		if (setget(d->free,gv) && (p!=NULL))
+			{ printf("Inconsistency: free %s %d, but gv2p %s\n",setget(d->free,gv)?"has":"doesn't have", gv, (p==NULL)?"is NULL":"isn't NULL"); assert(0); }
 
 		
 		if (p!=NULL)
@@ -190,7 +190,7 @@ void findHSymmetries(hdata* d, setgraph* h)
 	int orbits[MAXNV];
 	
 	DEFAULTOPTIONS_GRAPH(options);
-	options.defaultptn = FALSE;
+	options.defaultptn = 0;
 	statsblk stats;
 	
 	for (vertex v=0; v < n; ++v)
@@ -786,7 +786,7 @@ void build_next(searchData* restrict d, path* p, bitset bsnbhd)
 		build_BS(d, d->hd.hv2next[p->h1]);
 	}
 	else
-		longjmp(d->victory, true); // yay!
+		longjmp(d->victory, 1); // yay!
 }
 // if we were using alloca, we wouldn't need this...
 void freepath(path* p)
@@ -796,10 +796,10 @@ void freepath(path* p)
 	free(p);
 }
 
-bool has_minor(setgraph* g, setgraph* h, bitset* hv2bs)
+int has_minor(setgraph* g, setgraph* h, bitset* hv2bs)
 {
 	// setup
-	bool has = false;
+	int has = 0;
 	// FIX ME? where should I be selecting the ordering of the vertices?  here?  outside?  inside?
 	vertex* i2gv = malloc(g->nv * sizeof(vertex));
 	setgraph sorted_g;
@@ -814,7 +814,7 @@ bool has_minor(setgraph* g, setgraph* h, bitset* hv2bs)
 	
 	if (setjmp(d.victory))
 	{
-		has = true; // win!
+		has = 1; // win!
 		if (hv2bs != NULL)
 		{
 			// return a model of the minor
@@ -845,7 +845,7 @@ bool has_minor(setgraph* g, setgraph* h, bitset* hv2bs)
 	return has;
 }
 
-bool is_minor(setgraph* g, setgraph* h, bitset* hv2bs)
+int is_minor(setgraph* g, setgraph* h, bitset* hv2bs)
 {
 	for (vertex hv = 0; hv < h->nv; ++hv)
 	{
@@ -853,5 +853,5 @@ bool is_minor(setgraph* g, setgraph* h, bitset* hv2bs)
 			
 		bitset nbhd = emptyset;
 	}
-	return false;
+	return 0;
 }

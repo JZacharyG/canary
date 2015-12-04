@@ -6,6 +6,12 @@
 
 #define usageString "[-p] minor graph"
 #define usageExit { fprintf(stderr, "Usage: %s %s\n", argv[0], usageString); return 1; }
+
+typedef enum
+{
+	false = 0, true = !0
+} bool;
+
 int main(int argc, char *argv[])
 {
 	if (argc < 3) usageExit;
