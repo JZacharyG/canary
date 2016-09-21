@@ -75,7 +75,7 @@ static inline int first(bitset s, int* i)
 
 // look-up table for the location of the least significant (right-most)
 // non-zero bit in a byte. More accurately (because 0 -> 8), the number
-// of trailing 0s in a byte.
+// of trailing 0s in a byte.  
 static const int firstbit[] =
 {
 	8,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
@@ -176,6 +176,23 @@ static inline void print_set(bitset s)
 		while(next(s, &v, v))
 		{
 			printf(" %d", v);
+		}
+	}
+	else
+		printf(" ");
+	//printf("}");
+}
+
+static inline void print_set_alpha(bitset s)
+{
+	int v;
+	//printf("{");
+	if (first(s, &v)) 
+	{
+		printf("%c", 'a'+v);
+		while(next(s, &v, v))
+		{
+			printf(" %c", 'a'+v);
 		}
 	}
 	else

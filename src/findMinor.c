@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
 {
 	if (argc < 3) usageExit;
 	
-	
+	bool pathListInput = false;
 	
 	
 	setgraph h, g;
@@ -25,6 +25,7 @@ int main(int argc, char *argv[])
 		if (argc < 4) usageExit;
 		gpl2setgraph(argv[2], &h);
 		gpl2setgraph(argv[3], &g);
+		pathListInput = true;
 	}
 	else
 	{
@@ -42,11 +43,23 @@ int main(int argc, char *argv[])
 	{
 		printf("Minor Found! Branch sets given by:\n");
 		vertex hv, gv;
-		for (hv = 0; hv < h.nv; ++hv)
+		if (pathListInput)
 		{
-			printf("%d : ", hv);
-			print_set(hv2bs[hv]);
-			printf("\n");
+			for (hv = 0; hv < h.nv; ++hv)
+			{
+				printf("%c : ", 'a'+hv);
+				print_set_alpha(hv2bs[hv]);
+				printf("\n");
+			}
+		}
+		else
+		{
+			for (hv = 0; hv < h.nv; ++hv)
+			{
+				printf("%d : ", hv);
+				print_set(hv2bs[hv]);
+				printf("\n");
+			}
 		}
 	}
 	else

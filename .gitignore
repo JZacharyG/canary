@@ -1,6 +1,9 @@
-filterMinor
-findMinor
-genmf
 .DS_Store
 *.o
 *.dSYM
+/exe/*
+/doc/*
+src/monotone.c
+src/genmf.c
+src/vsplit.c
+makefile-universal

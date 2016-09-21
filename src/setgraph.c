@@ -1,11 +1,12 @@
 #include "setgraph.h"
-#include "debug.h"
 #include <string.h>
 #include <stdio.h>
+#include "debug.h"
 #define BIAS6 63
 #define SMALLN 62
 
-void g62setgraph(const char g6[], setgraph* g)
+// parses graph6 into a setgraph.  Assumes that you have not called allocate_setgraph on g yet, and requires you to call free_setgraph when you are done with it. 
+const char* g62setgraph(const char g6[], setgraph* g)
 {
 	int i, j, k, x, n;
 	
@@ -36,13 +37,24 @@ void g62setgraph(const char g6[], setgraph* g)
 		{
 			if (!--k) {
 				k = 6;
+				if (*g6 < '?' || *g6 > '~')
+				{
+					if (*g6 == '\0')
+						fprintf(stderr, "Error : Graph6 string ended prematurely\n");
+					else
+						fprintf(stderr, "Error : Character '%c' not valid in Graph6\n", *g6);
+					exit(1);
+				}
 				x = *(g6++) - BIAS6;
 			}
 			if ((x >> 5) & 1)
-			add_edge(g, i, j);
+				add_edge(g, i, j);
 			x <<= 1;
 		}
 	}
+	if (x & 63)
+		fprintf(stderr, "Warning: unread bits in Graph6 string\n");
+	return g6; // in case you wanted to process whatever came afterwards
 }
 
 // Expects a string in path list format, and anything in the string after the graph is complete is ignored.
@@ -95,9 +107,7 @@ void gpl2setgraph(const char gpl[], setgraph* g)
 		}
 		
 		while (*c == ' ')
-		{
 			++c;
-		}
 	}
 }
 
@@ -180,9 +190,10 @@ void rev_order_vertices(const setgraph* const g, vertex* const i2v)
 }
 
 
-// assumes that newg is (at least) as large as g
+// assumes that newg is (at least) as large as g and has been allocated.  this is... probably suboptimal.  FIX ME?
 void relabel_into(const setgraph* const g, setgraph* const newg, vertex* const i2v)
 {
+	assert(newg->nv >= g->nv);
 	newg->nv = g->nv;
 	for (vertex i = 0; i < newg->nv; ++i)
 	{

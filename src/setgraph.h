@@ -1,7 +1,6 @@
 #ifndef SETGRAPH_H
 #define SETGRAPH_H
 #include <stdlib.h>
-#include <assert.h>
 #define MAXNV 64
 
 typedef int vertex;
@@ -33,13 +32,13 @@ static inline void free_setgraph(setgraph* s)
 
 static inline void add_edge(setgraph* s, int v1, int v2)
 {
-	assert(0 <= v1 && v1 < s->nv);
-	assert(0 <= v2 && v2 < s->nv);
+// 	assert(0 <= v1 && v1 < s->nv);
+// 	assert(0 <= v2 && v2 < s->nv);
 	setaddeq(s->nbhd[v1], v2);
 	setaddeq(s->nbhd[v2], v1);
 }
 
-void g62setgraph(const char g6[], setgraph* g);
+const char* g62setgraph(const char g6[], setgraph* g);
 void gpl2setgraph(const char gpl[], setgraph* g);
 void print_adjacency_list(const setgraph* const g);
 void order_vertices(const setgraph* const g, vertex* const i2v);
