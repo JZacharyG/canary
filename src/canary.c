@@ -62,8 +62,7 @@ struct hdata
 
 typedef struct
 {
-	bitset gv2nbhd[MAXNV]; // just to store the graph
-	int gnv; // FIX ME. Why am I not just storing the graph structure itself? Seriously.
+	setgraph* g;
 	
 	hdata hd;
 	
@@ -101,7 +100,7 @@ void ensure_valid(searchData* d) { if (DEBUG)
 		}
 	}
 	
-	for (vertex gv=0; gv < d->gnv; ++gv)
+	for (vertex gv=0; gv < d->g->nv; ++gv)
 	{
 		path* p=d->gv2p[gv];
 		if (setget(d->free,gv) && (p!=NULL))
@@ -116,7 +115,7 @@ void ensure_valid(searchData* d) { if (DEBUG)
 			assert(i>0);
 			assert(i<p->len);
 			assert(p->i2psofar[i] == setadd(p->i2psofar[i-1], gv));
-			assert(p->i2nbhdsofar[i] == setunion(p->i2nbhdsofar[i-1], d->gv2nbhd[gv]));
+			assert(p->i2nbhdsofar[i] == setunion(p->i2nbhdsofar[i-1], d->g->nbhd[gv]));
 		}
 	}
 	//printf("passed!\n");
@@ -281,11 +280,10 @@ void initialize_hdata(hdata* hd, setgraph* h)
 
 void initialize_searchData(searchData* restrict d, setgraph* g, setgraph* h)
 {
-	 // just to store the graph
-	d->gnv = g->nv;
-	for (vertex gv = 0; gv < d->gnv; ++gv)
+	// just to store the graph
+	d->g = g;
+	for (vertex gv = 0; gv < g->nv; ++gv)
 	{
-		d->gv2nbhd[gv] = g->nbhd[gv];
 		d->gv2p[gv] = NULL;
 	}
 	bitset sofar = emptyset;
@@ -304,7 +302,7 @@ void initialize_searchData(searchData* restrict d, setgraph* g, setgraph* h)
 			assert(*pp!=NULL);
  			(**pp).h1 = hv;
  			(**pp).h2 = h2;
-  			for (int gv = 0; gv < d->gnv; ++gv)
+  			for (int gv = 0; gv < g->nv; ++gv)
  				(**pp).gv2i[gv] = NONE;
  			(**pp).i2psofar[0] = emptyset;
  			(**pp).i2nbhdsofar[0] = emptyset;
@@ -314,8 +312,8 @@ void initialize_searchData(searchData* restrict d, setgraph* g, setgraph* h)
 		setaddeq(sofar, hv);
 		hv = d->hd.hv2next[hv];
 	} while (hv != NONE);
-	d->hv2anchor[d->hd.hnv] = d->gnv;
-	d->free = fullset(d->gnv);
+	d->hv2anchor[d->hd.hnv] = g->nv;
+	d->free = fullset(g->nv);
 	
 	d->numMods = 0;
 }
@@ -328,7 +326,7 @@ void push_v(searchData* restrict d, path* p, vertex gv) // :)
 	p->gv2i[gv] = p->len;
 	d->gv2p[gv] = p;
 	p->i2psofar[p->len] = setadd(p->i2psofar[p->len-1], gv);
-	p->i2nbhdsofar[p->len] = setunion(p->i2nbhdsofar[p->len-1],d->gv2nbhd[gv]);
+	p->i2nbhdsofar[p->len] = setunion(p->i2nbhdsofar[p->len-1],d->g->nbhd[gv]);
 	++p->len;
 }
 
@@ -375,7 +373,7 @@ void fix_BS(searchData* restrict d, vertex gv, vertex hv) // ...
 		vertex v;
 		if (first(diff, &v)) do
 		{
-			setunioneq(diffnbhd, d->gv2nbhd[v]);
+			setunioneq(diffnbhd, d->g->nbhd[v]);
 		} while (next(diff, &v, v));
 	}
 
@@ -425,7 +423,7 @@ void fix_BS_not(searchData* restrict d, vertex gv, vertex hv) // :)
 		vertex v;
 		if (first(diff, &v)) do
 		{
-			setunioneq(diffnbhd, d->gv2nbhd[v]);
+			setunioneq(diffnbhd, d->g->nbhd[v]);
 		} while (next(diff, &v, v));
 	}
 
@@ -667,7 +665,7 @@ void add_to_path(searchData* restrict d, path* p, vertex gv, int c1, int c2,  bi
 	int firstMod = d->numMods;
 	
 	
-	if (setnonempty(setintsct(d->gv2nbhd[gv], d->hv2assigned[p->h2])))
+	if (setnonempty(setintsct(d->g->nbhd[gv], d->hv2assigned[p->h2])))
 	{
 		ensure_valid(d);
 		finish_path(d, p, c1, c2);
@@ -679,10 +677,10 @@ void add_to_path(searchData* restrict d, path* p, vertex gv, int c1, int c2,  bi
 		ensure_valid(d);
 		return; // if that failed then this path is hopeless.
 	}
-	assert(!setnonempty(setintsct(d->gv2nbhd[gv], d->hv2assigned[p->h2])));
+	assert(!setnonempty(setintsct(d->g->nbhd[gv], d->hv2assigned[p->h2])));
 	int nbr;
 	
-	bitset semicomplete = setintsct(d->gv2nbhd[gv], d->hv2semiassigned[p->h2]); // make sure that we aren't marking things in this path as assigned/semiassigned yet
+	bitset semicomplete = setintsct(d->g->nbhd[gv], d->hv2semiassigned[p->h2]); // make sure that we aren't marking things in this path as assigned/semiassigned yet
 //	we should find the last vertex adjacent to this one that can be part of Hv for each adjacent path of Hv.
 	// When we get rid of these, we introduce errors because if we have 
 	// (h1) -- a -- b -- (h2), and we fail to use b, then we will mark a and b as being part of h1, but we don't update the semicomplete set, so we will try to use a anyway.  BAM!  Data structure has been broken.
@@ -707,8 +705,8 @@ void add_to_path(searchData* restrict d, path* p, vertex gv, int c1, int c2,  bi
 		ensure_valid(d);
 	} while (next(semicomplete, &nbr, nbr));
 	
-	//bitset possible_next = setminus(d->gv2nbhd[gv], p->i2psofar[p->len-1]);
-	bitset possible_next = setminus(setminus(setminus(d->gv2nbhd[gv], p->i2psofar[p->len-1]), p->i2nbhdsofar[p->len-2]), bsnbhd);
+	//bitset possible_next = setminus(d->g->nbhd[gv], p->i2psofar[p->len-1]);
+	bitset possible_next = setminus(setminus(setminus(d->g->nbhd[gv], p->i2psofar[p->len-1]), p->i2nbhdsofar[p->len-2]), bsnbhd);
 	possible_next = setintsct(possible_next, d->free);
 
 	if (first(possible_next, &nbr)) do
@@ -765,7 +763,7 @@ void build_BS(searchData* restrict d, vertex hv)
 			d->hv2assigned[hv] = singleton(*anchorp);
 			d->hv2semiassigned[hv] = emptyset;
 			
-			build_path(d, d->hv2firstpath[hv], d->gv2nbhd[*anchorp]);
+			build_path(d, d->hv2firstpath[hv], d->g->nbhd[*anchorp]);
 			
 			setaddeq(d->free, *anchorp);
 			setremoveeq(s, *anchorp);
@@ -826,7 +824,6 @@ int has_minor(setgraph* g, setgraph* h, bitset* hv2bs)
 				setunioneq(assigned, hv2bs[hv]);
 				
 				// those are done in the reordered G, but we want to return a model that uses the original G
-				
 				hv2bs[hv] = relabel(hv2bs[hv], i2gv);
 			}
 		}
@@ -850,8 +847,26 @@ int is_minor(setgraph* g, setgraph* h, bitset* hv2bs)
 	for (vertex hv = 0; hv < h->nv; ++hv)
 	{
 		// check that the branch set is connected
-			
-		bitset nbhd = emptyset;
+		bitset queue = getfirst(hv2bs[hv]), comp = emptyset, nbhd = emptyset;
+		int i;
+		if (first(queue, &i)) do
+		{
+			setremoveeq(queue, i);
+			setaddeq(comp,i);
+			setunioneq(queue, setminus(setintsct(g->nbhd[i], hv2bs[hv]), comp));
+			setunioneq(nbhd, g->nbhd[i]);
+		} while (first(queue, &i));
+		else
+			return 0;
+		if (comp != hv2bs[hv])
+			return 0;
+		
+		// check that it has the right adjacencies
+		if (first(h->nbhd[hv], &i)) do
+		{
+			if (setisempty(setintsct(nbhd, hv2bs[i])))
+				return 0;
+		} while (next(h->nbhd[hv], &i, i));
 	}
-	return 0;
+	return 1;
 }

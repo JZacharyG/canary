@@ -40,10 +40,15 @@ typedef uint64_t bitset;
 
 
 #define setnonempty(s)     (s)
+#define setisempty(s)      (!s)
 #define issubset(s1,s2)    (!((~(s1))&(s2))) // is s2 a subset of s1
 
 
-
+// return a bitset containing only the first element of s
+static inline bitset getfirst(bitset s)
+{
+	return ((~s)&(s-1))+1;
+}
 
 static inline bitset setremovefirst(bitset s)
 {
@@ -127,10 +132,11 @@ static inline int setsize(bitset s)
 }
 #endif
 
+// expects that p < MAXNV.  Seems like -1 << 64 = -1, instead of 0.  which is strange...
 static inline int next(bitset s, int* i, int p)
 {
 	// clear bits upto and including p, then find the first bitset bit.
-	return first(s & ((bitset)(-1) << (p+1)), i);
+	return first(s & (((bitset)(-1) << p) << 1), i);
 }
 
 static inline bitset relabel(bitset in, int* old2new)
