@@ -626,6 +626,7 @@ void build_path(searchData* restrict d, path* p, bitset bsnbhd)
 		vp = d->gv2p[v];
 		nbhd = setminus(vp->i2nbhdsofar[vp->gv2i[v]], vp->i2nbhdsofar[vp->gv2i[v]-1]);
 		setintscteq(nbhd, d->free);
+		setminuseq(nbhd,bsnbhd);
 		if (first(nbhd, &nbr))
 		{
 			ensure_valid(d);

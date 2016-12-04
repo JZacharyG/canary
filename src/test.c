@@ -19,7 +19,7 @@ void minorTest(const char* Gstr, const char* Hstr, int hasMinor)
 	{
 		printf("TEST FAILED:\n\tdesired: %s\n\tresult: %s\n\n", (hasMinor)?"true":"false", (result)?"true":"false");
 	}
-	else if (hasMinor && !is_minor(&G,&H,hv2bs))
+	else if (hasMinor && !is_minor(&G, &H, hv2bs))
 	{
 		printf("TEST FAILED:\n\treturned minor is not correct\n\n");
 	}
@@ -55,7 +55,7 @@ void minorTestFile(const char* filename, const char* Hstr, int hasMinor)
 	{
 		g62setgraph(Gstr, &G);
 		start_stopwatch(s);
-		int result = has_minor(&G, &H, NULL);
+		int result = has_minor(&G, &H, hv2bs);
 		pause_stopwatch(s);
 		if (!hasMinor != !result)
 		{
@@ -64,7 +64,7 @@ void minorTestFile(const char* filename, const char* Hstr, int hasMinor)
 			printf("TEST FAILED: %s < %s\tdesired: %s\n\tresult: %s\n", Hstr, Gstr, (hasMinor)?"true":"false", (result)?"true":"false");
 			++numFailed;
 		}
-		else if (hasMinor && !is_minor(&G,&H,hv2bs))
+		else if (hasMinor && !is_minor(&G, &H, hv2bs))
 		{
 			printf("TEST FAILED: %s < %s\treturned minor is not correct\n", Hstr, Gstr);
 			++numFailed;
@@ -77,7 +77,7 @@ void minorTestFile(const char* filename, const char* Hstr, int hasMinor)
 	free(hv2bs);
 	fclose(file);
 	free(Gstr);
-	printf("Done testing '%s'\n\t%d tests passed and %d tests failed.\n\tTotal Time: ", filename, numPassed, numFailed);
+	printf("\t%d tests passed and %d tests failed.\n\tTotal Time: ", filename, numPassed, numFailed);
 	print_stopwatch(s);
 	printf("\n\n");
 }
