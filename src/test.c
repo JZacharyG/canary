@@ -77,7 +77,7 @@ void minorTestFile(const char* filename, const char* Hstr, int hasMinor)
 	free(hv2bs);
 	fclose(file);
 	free(Gstr);
-	printf("\t%d tests passed and %d tests failed.\n\tTotal Time: ", filename, numPassed, numFailed);
+	printf("\t%d tests passed and %d tests failed.\n\tTotal Time: ", numPassed, numFailed);
 	print_stopwatch(s);
 	printf("\n\n");
 }
