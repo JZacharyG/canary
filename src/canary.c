@@ -506,8 +506,10 @@ void add_to_path(searchData* restrict d, path* p, vertex gv, int c1, int c2,  bi
 void build_next(searchData* restrict d, path* p, bitset bsnbhd);
 
 // start building the specified path
+long long build_path_count = 0;
 void build_path(searchData* restrict d, path* p, bitset bsnbhd)
 {
+	stat_increment(build_path_count);
 	/* initialize things */
 	
 	assert(p != NULL);
@@ -626,6 +628,7 @@ void build_path(searchData* restrict d, path* p, bitset bsnbhd)
 		vp = d->gv2p[v];
 		nbhd = setminus(vp->i2nbhdsofar[vp->gv2i[v]], vp->i2nbhdsofar[vp->gv2i[v]-1]);
 		setintscteq(nbhd, d->free);
+		setminuseq(nbhd,bsnbhd);
 		if (first(nbhd, &nbr))
 		{
 			ensure_valid(d);
@@ -648,8 +651,10 @@ void build_path(searchData* restrict d, path* p, bitset bsnbhd)
 
 // assumes that gv is 'allowed' to be added to the given path, in that it is adjacent to the previous vertex on its path and it is not immediately redundant.
 // Adds it, continues the search, and returns if it fails to build this into a complete model for the minor (jumps if successful).
+long long add_to_path_count = 0;
 void add_to_path(searchData* restrict d, path* p, vertex gv, int c1, int c2,  bitset bsnbhd)
 {
+	stat_increment(add_to_path_count);
 	// if we are using vertices that are not allowed in one or both of the branch sets, adjust the cutoffs accordingly.
 	assert(c1 < c2);
 	
@@ -679,6 +684,14 @@ void add_to_path(searchData* restrict d, path* p, vertex gv, int c1, int c2,  bi
 	}
 	assert(!setnonempty(setintsct(d->g->nbhd[gv], d->hv2assigned[p->h2])));
 	int nbr;
+	
+// 	This seems to make things quite a bit slower, despite doing a little bit of pruning.  Also, this isn't going to mess with the current path, right?  I don't think so...
+// 	bitset semih1nbrs = setintsct(d->g->nbhd[gv], d->hv2semiassigned[p->h1]);
+// 	if (first(semih1nbrs, &nbr)) do
+// 	{
+// 		fix_BS_not(d, nbr, p->h1);
+// 		setintscteq(semih1nbrs,d->hv2semiassigned[p->h1]);
+// 	} while (next(semih1nbrs, &nbr, nbr));
 	
 	bitset semicomplete = setintsct(d->g->nbhd[gv], d->hv2semiassigned[p->h2]); // make sure that we aren't marking things in this path as assigned/semiassigned yet
 //	we should find the last vertex adjacent to this one that can be part of Hv for each adjacent path of Hv.
@@ -723,9 +736,10 @@ void add_to_path(searchData* restrict d, path* p, vertex gv, int c1, int c2,  bi
 	pop_v(d, p, gv);
 }
 
+long long build_BS_count = 0;
 void build_BS(searchData* restrict d, vertex hv)
 {
-	
+	stat_increment(build_BS_count);
 	db_print("Attempting to find a branch set for %d\n", hv);
 	vertex* anchorp = &d->hv2anchor[hv];
 	print_search_data(d, hv, NULL);
@@ -839,6 +853,7 @@ int has_minor(setgraph* g, setgraph* h, bitset* hv2bs)
 		freepath(d.hv2firstpath[i]);
 	free(i2gv);
 	free_setgraph(&sorted_g);
+	stats_print("bbs:%lld\nbp :%lld\na2p:%lld\n",build_BS_count, build_path_count, add_to_path_count);
 	return has;
 }
 
