@@ -1,11 +1,16 @@
 .DS_Store
+
 *.o
 *.dSYM
+
 /exe/*
 /doc/*
+
 src/monotone.c
 src/genmf.c
 src/vsplit.c
-makefile-universal
+
 tst/smallNearlyPlanar.g6
 tst/testcases.txt
+
+nauty26r7/*
