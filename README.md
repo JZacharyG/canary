@@ -43,6 +43,3 @@ I've done a hodgepodge of testing, but the test suite is still quite limited.  Y
 This project is still very young, and the very best thing that you can do is to use it.  Use it, test it, love it, and tell me how it goes.  If it is helpful, tell your friends!
 
 I would love to hear what sort of projects you are using Canary for, and please feel free to tell me about any bugs you find, or suggestions you have.
-
-##License
-There will probably be a license at some point.
