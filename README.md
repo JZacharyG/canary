@@ -35,7 +35,7 @@ findMinor -p 'adbecfae bf cd.' 'abcdea fhjgif af bg ch di ej.'
 ```
 There are other things that you can do, but that should be enough to get you started.
 
-##Tests
+## Tests
 I've done a hodgepodge of testing, but the test suite is still quite limited.  You can run whatever tests I have with `make tests` or by running the program `runTests`.  If you have an idea for a family of graphs that I should test it on, or if, like me, you have a few sets of graphs lying around that you know either have or do not have a certain minor, then please let me know.  It would be greatly appreciated!
 
 ## How you can help
